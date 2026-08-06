@@ -1,3 +1,5 @@
+import AddIcon from '@iconify-react/material-symbols-light/add'
+import CloseIcon from '@iconify-react/material-symbols-light/close'
 import { POPULAR_STOCKS, stockName } from '../data/stocks'
 import { StockSearch } from './StockSearch'
 
@@ -51,7 +53,7 @@ export function Sidebar({
                   <span className="sidebar-code">{c}</span>
                 </button>
                 <button className="sidebar-row-action" onClick={() => onRemove(c)} title="移出自选">
-                  ×
+                  <CloseIcon width="14" height="14" />
                 </button>
               </div>
             ))
@@ -64,7 +66,7 @@ export function Sidebar({
                 <span className="sidebar-code">{s.code}</span>
               </button>
               <button className="sidebar-row-action" onClick={() => onAdd(s.code)} title="加入自选">
-                +
+                <AddIcon width="14" height="14" />
               </button>
             </div>
           ))

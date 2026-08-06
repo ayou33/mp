@@ -17,14 +17,16 @@ body,
 body {
   font-family: 'DM Sans', ui-sans-serif, sans-serif, system-ui;
   font-size: 13px;
-  background-color: #131722;
+  background-color: #090b0d;
   color: #d1d4dc;
 }
 
+/* island 风格:面板间留小间距,各自圆角,面板底色区别于页面底色 */
 .app {
   display: flex;
   flex-direction: column;
   height: 100%;
+  gap: 6px;
 }
 
 /* ---- 搜索框:无边框,聚焦用光圈 ---- */
@@ -34,27 +36,83 @@ body {
 }
 
 .stock-search input {
+  border-radius: 8px;
+  min-height: 48px;
   flex: 1;
   min-width: 0;
   padding: 10px;
   border: none;
   background: #1e222d;
   color: #d1d4dc;
-  font-size: 13px;
+  font-size: 18px;
   outline: none;
+  text-transform: uppercase;
 }
 
 .stock-search input:focus {
   box-shadow: 0 0 0 1px #2962ff;
 }
 
-/* ---- 顶部指标区 ---- */
+/* ---- 顶部 bar:左周期 / 中指标栏 / 右设置 ---- */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 16px;
+  background: #131722;
+}
+
+.period-switcher {
+  display: inline-flex;
+  border: 1px solid rgba(197, 203, 206, 0.15);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.period-btn {
+  padding: 5px 14px;
+  border: none;
+  background: transparent;
+  color: #787b86;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.period-btn:hover {
+  color: #d1d4dc;
+}
+
+.period-btn.active {
+  background: #2962ff;
+  color: #fff;
+}
+
+.settings-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-left: auto;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #787b86;
+  cursor: pointer;
+}
+
+.settings-button:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+/* ---- 顶部指标栏(TopBar 中间)---- */
 .indicator-bar {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 8px 16px;
-  border-bottom: 1px solid rgba(197, 203, 206, 0.15);
+  flex: 1;
+  min-width: 0;
   font-size: 13px;
 }
 
@@ -68,7 +126,7 @@ body {
   border: none;
   padding: 0;
   color: #787b86;
-  font-size: 13px;
+  font-size: 14px;
   cursor: pointer;
 }
 
@@ -88,25 +146,19 @@ body {
   gap: 6px;
 }
 
-.indicator-dots {
+/* 指标编辑按钮(tune 图标) */
+.indicator-edit {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
   background: none;
   border: none;
-  padding: 4px;
+  padding: 2px;
+  color: #787b86;
   cursor: pointer;
 }
 
-.indicator-dot {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: #787b86;
-}
-
-.indicator-dots:hover .indicator-dot {
-  background: #d1d4dc;
+.indicator-edit:hover {
+  color: #d1d4dc;
 }
 
 /* 指标之间的竖向短线分割 */
@@ -114,12 +166,112 @@ body {
   color: #4c525e;
 }
 
+/* 指标栏末尾加号:新增指标 */
+.indicator-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-left: 4px;
+  border: 1px solid rgba(197, 203, 206, 0.2);
+  border-radius: 50%;
+  background: transparent;
+  color: #787b86;
+  cursor: pointer;
+}
+
+.indicator-add:hover {
+  color: #fff;
+  border-color: #2962ff;
+}
+
+/* 添加指标弹窗列表 */
+.add-indicator {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.add-indicator-row {
+  padding: 8px 12px;
+  border: 1px solid rgba(197, 203, 206, 0.15);
+  border-radius: 6px;
+  background: transparent;
+  color: #d1d4dc;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.add-indicator-row.active {
+  border-color: #2962ff;
+  color: #2962ff;
+  background: rgba(41, 98, 255, 0.1);
+}
+
+/* 设置弹窗 */
+.settings-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.settings-label {
+  color: #d1d4dc;
+}
+
+.settings-seg {
+  display: inline-flex;
+  border: 1px solid rgba(197, 203, 206, 0.15);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.settings-seg button {
+  padding: 5px 14px;
+  border: none;
+  background: transparent;
+  color: #787b86;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.settings-seg button.active {
+  background: #2962ff;
+  color: #fff;
+}
+
+.settings-hint {
+  margin: 0;
+  font-size: 12px;
+  color: #787b86;
+}
+
 .error-banner {
   padding: 8px 16px;
-  border-bottom: 1px solid rgba(242, 54, 69, 0.4);
   background: rgba(242, 54, 69, 0.12);
   color: #f23645;
   font-size: 13px;
+  border-radius: 8px;
 }
 
 /* ---- 主区域:左画线栏 / 全屏图表 / 右侧栏 ---- */
@@ -127,6 +279,7 @@ body {
   flex: 1;
   display: flex;
   min-height: 0;
+  gap: 6px;
 }
 
 /* 左侧竖向画线工具栏:按钮无边框,激活时加背景 */
@@ -135,8 +288,9 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  padding: 10px 8px;
-  border-right: 1px solid rgba(197, 203, 206, 0.15);
+  padding: 10px 6px;
+  background: #131722;
+  border-radius: 0 8px 0 0;
   /* 竖向面板优先级高:固定宽度,不随图表收缩 */
   flex: 0 0 auto;
 }
@@ -175,17 +329,138 @@ body {
   color: #b685f0;
 }
 
-/* 图表容器:无 padding,占满剩余空间 */
+/* 图表容器:无 padding,占满剩余空间;圆角裁剪图表 */
 .chart-wrap {
   flex: 1;
   position: relative;
   min-width: 0;
   min-height: 0;
+  background: #1e222d;
+  border-radius: 8px 8px 0 0;
+  overflow: hidden;
 }
 
 .kline-chart {
   position: absolute;
   inset: 0;
+}
+
+/* 图表包裹层:作为 kline-chart 与右键菜单的定位上下文 */
+.kline-chart-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* 画线对象右键菜单 */
+.drawing-menu {
+  position: absolute;
+  z-index: 30;
+  min-width: 168px;
+  padding: 4px;
+  background: #1e222d;
+  border: 1px solid rgba(197, 203, 206, 0.2);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+}
+
+/* 价格输入区:输入框无边框,用更浅的背景色区分 */
+.drawing-menu-price {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 6px 8px;
+}
+
+.drawing-menu-price-label {
+  font-size: 12px;
+  color: #787b86;
+  white-space: nowrap;
+}
+
+.drawing-menu-price-input {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  border: none;
+  border-radius: 4px;
+  background: #2a2e39;
+  color: #d1d4dc;
+  font-size: 13px;
+  outline: none;
+}
+
+.drawing-menu-price-input:focus {
+  background: #333844;
+}
+
+.drawing-menu-price-input:disabled {
+  opacity: 0.55;
+}
+
+.drawing-menu-title {
+  padding: 6px 10px;
+  font-size: 12px;
+  color: #787b86;
+  border-bottom: 1px solid rgba(197, 203, 206, 0.12);
+  margin-bottom: 4px;
+}
+
+.drawing-menu-item {
+  display: block;
+  width: 100%;
+  padding: 7px 10px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: #d1d4dc;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.drawing-menu-item:hover {
+  background: rgba(197, 203, 206, 0.12);
+}
+
+.drawing-menu-item.danger {
+  color: #f23645;
+}
+
+/* 右键框选覆盖层 */
+.range-select-overlay {
+  position: absolute;
+  z-index: 15;
+  background: rgba(41, 98, 255, 0.12);
+  border: 1px solid rgba(41, 98, 255, 0.6);
+  pointer-events: none;
+}
+
+/* 区间统计弹窗 */
+.range-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  min-width: 230px;
+}
+
+.range-stats-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.range-stats-row span:first-child {
+  color: #787b86;
+}
+
+.range-stats-row.up {
+  color: #f23645;
+}
+
+.range-stats-row.down {
+  color: #089981;
 }
 
 /* 图表悬浮覆盖层(不拦截图表交互) */
@@ -222,6 +497,14 @@ body {
   color: #fff;
 }
 
+/* 名称列:名称在上,"回到最新"按钮在下方右对齐 */
+.chart-overlay-name-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
 .chart-overlay-code {
   font-size: 12px;
   color: #787b86;
@@ -239,12 +522,34 @@ body {
   white-space: nowrap;
 }
 
+/* 回到最新按钮(名称下方右对齐;圆形 >> 样式;overlay 为 pointer-events:none,需单独放行) */
+.back-latest {
+  pointer-events: auto;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #2962ff;
+  border-radius: 50%;
+  background: transparent;
+  color: #2962ff;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.back-latest:hover {
+  background: rgba(41, 98, 255, 0.12);
+}
+
 /* ---- 右侧栏:自选 / 浏览 ---- */
 .sidebar {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border-left: 1px solid rgba(197, 203, 206, 0.15);
+  background: #131722;
+  border-radius: 8px 0;
   /* 竖向面板优先级高:固定宽度,不随图表收缩 */
   flex: 0 0 260px;
 }
@@ -283,7 +588,6 @@ body {
 .sidebar-body {
   flex: 1;
   overflow-y: auto;
-  padding: 8px;
 }
 
 .sidebar-empty {
@@ -297,8 +601,7 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 8px;
-  border-radius: 6px;
+  padding: 10px;
 }
 
 .sidebar-row:hover {
@@ -311,7 +614,7 @@ body {
   background: none;
   border: none;
   color: #d1d4dc;
-  font-size: 13px;
+  font-size: 14px;
   cursor: pointer;
   padding: 2px 0;
 }
@@ -333,4 +636,179 @@ body {
 
 .sidebar-row-action:hover {
   color: #fff;
+}
+
+/* ---- 弹窗系统 ---- */
+.modal-layer {
+  position: fixed;
+  inset: 0;
+  display: flex;
+}
+
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.modal-dialog {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: #1e222d;
+}
+
+/* TradingView 风格:右侧滑入设置面板 */
+.modal-layer-right {
+  justify-content: flex-end;
+  align-items: stretch;
+}
+
+.modal-dialog-right {
+  width: 400px;
+  max-width: 90vw;
+  height: 100vh;
+  max-height: 100vh;
+  box-shadow: -8px 0 30px rgba(0, 0, 0, 0.5);
+  animation: modal-slide-right 0.18s ease;
+}
+
+/* 居中确认弹窗 */
+.modal-layer-center {
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-dialog-center {
+  width: 420px;
+  max-width: 90vw;
+  max-height: 80vh;
+  border-radius: 8px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+}
+
+@keyframes modal-slide-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px 8px;
+}
+
+.modal-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: #787b86;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.modal-close:hover {
+  color: #fff;
+}
+
+.modal-body {
+  flex: 1;
+  padding: 8px 20px 20px;
+  overflow-y: auto;
+  font-size: 13px;
+}
+
+/* 弹窗底部操作按钮 */
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.modal-btn {
+  padding: 6px 14px;
+  border: 1px solid rgba(197, 203, 206, 0.2);
+  border-radius: 4px;
+  background: transparent;
+  color: #d1d4dc;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.modal-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.modal-btn-primary {
+  border-color: #2962ff;
+  background: #2962ff;
+  color: #fff;
+}
+
+.modal-btn-primary:hover {
+  background: #1e53e5;
+}
+
+/* 弹窗内的指标参数表单 */
+.indicator-params {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.indicator-params-note {
+  margin: 0;
+  color: #787b86;
+}
+
+.indicator-params-label {
+  font-size: 13px;
+  color: #d1d4dc;
+}
+
+.indicator-params-input {
+  padding: 6px 10px;
+  border: none;
+  border-radius: 4px;
+  background: #131722;
+  color: #d1d4dc;
+  font-size: 13px;
+  outline: none;
+}
+
+.indicator-params-input:focus {
+  box-shadow: 0 0 0 1px #2962ff;
+}
+
+.indicator-params-hint {
+  margin: 0;
+  font-size: 12px;
+  color: #787b86;
+}
+
+.indicator-params-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+}
+
+.indicator-params-key {
+  color: #787b86;
+}
+
+.indicator-params-value {
+  color: #d1d4dc;
+  font-weight: 600;
 }

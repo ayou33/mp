@@ -21,9 +21,9 @@ export interface MacdSeriesData {
   macd: MacdBarPoint[]
 }
 
-/** 红涨绿跌惯例:柱为正红、负绿 */
-const POSITIVE_COLOR = '#f23645'
-const NEGATIVE_COLOR = '#089981'
+/** 红涨绿跌惯例:柱为正红、负绿;配色参考成交量柱(半透明红/绿,见 KLineChart VOLUME_UP/DOWN) */
+const POSITIVE_COLOR = 'rgba(242, 54, 69, 0.35)'
+const NEGATIVE_COLOR = 'rgba(8, 153, 129, 0.35)'
 
 /**
  * MACD:EMA(fast)-EMA(slow)=DIF;DEA=EMA(DIF, signal);柱=(DIF-DEA)*2。

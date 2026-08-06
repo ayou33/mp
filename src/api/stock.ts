@@ -1,5 +1,14 @@
 import type { DailyKline, KlineBar } from '../types'
 
+/** K 线周期:日/周/月 */
+export type KlinePeriod = 'day' | 'week' | 'month'
+
+export const PERIOD_LABEL: Record<KlinePeriod, string> = {
+  day: '日线',
+  week: '周线',
+  month: '月线',
+}
+
 /** 腾讯行情接口,经 Vite 同源代理转发(代理去掉 /api 前缀),浏览器无跨域限制 */
 const KLINE_API = '/api/appstock/app/fqkline/get'
 
@@ -36,13 +45,15 @@ export function normalizeCode(input: string): string {
   throw new Error(`无法识别股票代码:${input}`)
 }
 
-/**
- * 拉取某只 A 股最近 n 个交易日的日 K 线(前复权)。
- * @param code 规范化的代码,如 sh600519
- * @throws 网络失败 / 未找到股票 / 无 K 线数据时抛错
- */
-export async function fetchDailyKline(code: string, count = 320): Promise<DailyKline> {
-  const url = `${KLINE_API}?param=${code},day,,,${count},qfq`
+/** 请求并解析指定代码、周期的 K 线(前复权优先) */
+async function fetchRawKline(
+  code: string,
+  period: KlinePeriod,
+  start: string,
+  end: string,
+  count: number,
+): Promise<{ name: string; bars: KlineBar[] }> {
+  const url = `${KLINE_API}?param=${code},${period},${start},${end},${count},qfq`
   const resp = await fetch(url)
   if (!resp.ok) throw new Error(`行情接口请求失败:HTTP ${resp.status}`)
 
@@ -73,7 +84,34 @@ export async function fetchDailyKline(code: string, count = 320): Promise<DailyK
   }))
 
   // 股票名称存在 data.<code>.qt.<code>[1],如 贵州茅台
-  const name = stock.qt?.[code]?.[1] ?? code
+  return { name: stock.qt?.[code]?.[1] ?? code, bars }
+}
 
+/**
+ * 拉取某只 A 股指定周期的最近 n 根 K 线(前复权)。
+ * @param code 规范化的代码,如 sh600519
+ * @throws 网络失败 / 未找到股票 / 无 K 线数据时抛错
+ */
+export async function fetchKline(code: string, period: KlinePeriod, count = 320): Promise<DailyKline> {
+  const { name, bars } = await fetchRawKline(code, period, '', '', count)
   return { code, name, bars }
+}
+
+/** 兼容旧调用:日 K */
+export function fetchDailyKline(code: string, count = 320): Promise<DailyKline> {
+  return fetchKline(code, 'day', count)
+}
+
+/**
+ * 拉取某只 A 股在 beforeDate 之前的更早 K 线(右滑追加历史用)。
+ * @param beforeDate 该日期之前的数据(不含当天)
+ */
+export async function fetchOlderKline(
+  code: string,
+  period: KlinePeriod,
+  beforeDate: string,
+  count = 320,
+): Promise<KlineBar[]> {
+  const { bars } = await fetchRawKline(code, period, '', beforeDate, count)
+  return bars
 }

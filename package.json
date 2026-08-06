@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@iconify-react/material-symbols-light": "^1.0.30",
     "fancy-canvas": "^2.1.0",
     "lightweight-charts": "^5.2.0",
     "react": "^19.2.8",

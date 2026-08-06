@@ -52,7 +52,11 @@ export class SubChartIndicator {
     this._chart = chart
     this._def = def
 
-    for (const c of def.components) {
+    // 柱状图先创建,置于线条之下(lightweight-charts 后添加的 series 绘制在上层,会盖住先前的线条)
+    const ordered = [...def.components].sort(
+      (a, b) => Number(b.type === 'histogram') - Number(a.type === 'histogram'),
+    )
+    for (const c of ordered) {
       const series = chart.addSeries(
         c.type === 'histogram' ? HistogramSeries : LineSeries,
         { color: c.color, lineWidth: 1, priceLineVisible: false, lastValueVisible: false },

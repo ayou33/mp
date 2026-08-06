@@ -18,14 +18,24 @@ export interface FibPoint {
   price: number
 }
 
+/** 已完成的斐波那契(带唯一 id 与只读标记;控制点 p1/p2 可参数化直接读写) */
+export interface FibDrawing {
+  id: number
+  p1: FibPoint
+  p2: FibPoint
+  readonly?: boolean
+}
+
 /** 斐波那契绘制的数据源(由 DrawingTools 持有并就地变更,primitive 每次渲染时读取) */
 export interface FibDataSource {
-  /** 已完成的斐波那契,每个包含 2 个锚点 */
-  fibs: FibPoint[][]
+  /** 已完成的斐波那契 */
+  fibs: FibDrawing[]
   /** 绘制中的锚点(0 / 1 / 2 个) */
   pending: FibPoint[]
   /** 放置第 2 个锚点时跟随鼠标的预览位置 */
   preview: FibPoint | null
+  /** 悬停高亮的斐波那契 id(控制点放大高亮);null/undefined 不高亮 */
+  highlight?: number | null
 }
 
 export const FIB_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1] as const
@@ -34,8 +44,9 @@ export const FIB_COLOR = '#b685f0'
 /** 0.236 -> "23.6%", 0.5 -> "50%", 1 -> "100%" */
 const pct = (r: number) => `${(r * 100).toFixed(1).replace(/\.0$/, '')}%`
 
-/** 单个待渲染的斐波那契(两个锚点) */
+/** 单个待渲染的斐波那契(两个锚点;id 用于悬停高亮) */
 export interface RenderFib {
+  id: number
   p1: FibPoint
   p2: FibPoint
 }
@@ -67,14 +78,18 @@ export class FibonacciPrimitive implements ISeriesPrimitive<Time> {
     return this._series
   }
 
+  get data(): FibDataSource {
+    return this._data
+  }
+
   /** 当前需要渲染的所有斐波那契(已完成 + 绘制中的) */
   renderFibs(): RenderFib[] {
     const { fibs, pending, preview } = this._data
-    const out: RenderFib[] = fibs.map((f) => ({ p1: f[0], p2: f[1] }))
+    const out: RenderFib[] = fibs.map((f) => ({ id: f.id, p1: f.p1, p2: f.p2 }))
     if (pending.length === 2) {
-      out.push({ p1: pending[0], p2: pending[1] })
+      out.push({ id: -1, p1: pending[0], p2: pending[1] })
     } else if (pending.length === 1 && preview) {
-      out.push({ p1: pending[0], p2: preview })
+      out.push({ id: -1, p1: pending[0], p2: preview })
     }
     return out
   }
@@ -150,6 +165,7 @@ class FibPaneRenderer implements IPrimitivePaneRenderer {
       ctx.strokeStyle = FIB_COLOR
       ctx.fillStyle = FIB_COLOR
       ctx.lineWidth = 1.5 * vrp
+      const hl = this._primitive.data.highlight
 
       for (const fib of fibs) {
         const x1 = chart.timeScale().timeToCoordinate(fib.p1.time)
@@ -178,6 +194,18 @@ class FibPaneRenderer implements IPrimitivePaneRenderer {
         ctx.beginPath()
         ctx.arc(bx(x2), by(y2), r, 0, Math.PI * 2)
         ctx.fill()
+        // 悬停高亮:控制点外圈白色圆环
+        if (fib.id === hl) {
+          ctx.strokeStyle = '#ffffff'
+          ctx.lineWidth = 2 * vrp
+          const hr = 7 * vrp
+          ctx.beginPath()
+          ctx.arc(bx(x1), by(y1), hr, 0, Math.PI * 2)
+          ctx.stroke()
+          ctx.beginPath()
+          ctx.arc(bx(x2), by(y2), hr, 0, Math.PI * 2)
+          ctx.stroke()
+        }
 
         // 斐波那契回调水平线(贯穿整个宽度)
         const lo = Math.min(fib.p1.price, fib.p2.price)
