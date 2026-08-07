@@ -8,9 +8,9 @@ import type {
   SeriesAttachedParameter,
   Time,
 } from 'lightweight-charts'
+import type { LineType } from './types'
 
-/** 画线类型:线段(两点之间)/ 射线(起点向右延伸)/ 直线(两点无限延伸) */
-export type LineType = 'segment' | 'ray' | 'straight'
+export type { LineType } from './types'
 
 export interface LinePoint {
   time: Time

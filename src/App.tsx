@@ -4,6 +4,7 @@ import { fetchKline, fetchOlderKline, normalizeCode, PERIOD_LABEL, type KlinePer
 import { DrawToolbar } from './components/DrawToolbar'
 import { KLineChart } from './components/KLineChart'
 import type { LineType } from './drawing/LinePrimitive'
+import { drawingStorageKey } from './drawing/persistence'
 import { Sidebar, type SidebarTab } from './components/Sidebar'
 import { TopBar } from './components/topbar/TopBar'
 import { DEFAULT_SETTINGS, SettingsDialog, type UserSettings } from './components/topbar/SettingsDialog'
@@ -202,6 +203,7 @@ export default function App() {
             onLatestVisibleChange={setLatestVisible}
             backSignal={backSignal}
             lineTool={lineTool}
+            storageKey={drawingStorageKey(code, period)}
           />
           {/* 右上:OHLCV + 代码 + 周期 + 名称;名称下方"回到最新"按钮 */}
           <div className="chart-overlay chart-overlay-tr">
