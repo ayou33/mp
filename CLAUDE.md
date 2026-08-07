@@ -11,7 +11,7 @@ TradingView 风格 A 股日 K 看板(React 19 + Vite 8 + TypeScript)。图表基
 1. **充分但不过度的组件抽象** — 抽象以降低真实复杂度为准,不为抽象而抽象;每个抽象必须有清晰的职责边界。
 2. **自顶向下、低层优先** — 新增/修改任何功能时自顶向下考虑:能放在数据层/工具层(`src/api/`、`src/drawing/`)解决的,就不要在 UI 组件里处理;把问题与错误拦截在尽可能低的层次,避免遗漏上抛到更高层。
 3. **tsx 组件文件 ≤250 行左右** — 单个 **`.tsx` 组件文件**控制在 250 行左右,超限即拆分,把逻辑下沉到更低的层次。`.ts` 模块(控制器、primitive、工具)不受此限制。
-4. **文档同步** — `src/drawing/` 与 `src/indicators/` 各自维护独立的 `CLAUDE.md`(目录级结构、约定与关键坑)。**修改这些目录的结构或逻辑时,必须同步更新对应的 `CLAUDE.md`**;根据更新的内容自行判断是否还需回写根 `CLAUDE.md`(仅当改动影响全局约定/跨目录协作时才动根文档,目录内细节留在子文档)。
+4. **文档同步** — `src/drawing/`、`src/indicators/`、`src/components/` 各自维护独立的 `CLAUDE.md`(目录级结构、约定与关键坑)。**修改这些目录的结构或逻辑时,必须同步更新对应的 `CLAUDE.md`**;根据更新的内容自行判断是否还需回写根 `CLAUDE.md`(仅当改动影响全局约定/跨目录协作时才动根文档,目录内细节留在子文档)。
 5. **弹窗统一基础组件** — 系统内**所有弹窗/浮层必须从 `src/components/modal/BaseModal.tsx` 衍生**:全屏弹窗(指标配置/设置/区间统计等)经 `ModalProvider` 渲染,容器内浮层(画线编辑菜单、操作线执行确认等)用 `placement="float"` 自定位。新增弹窗不得自建面板外壳样式,统一复用 BaseModal(Tailwind utility 面板)。
 6. **样式统一 Tailwind utility** — 所有 UI 样式用 **Tailwind utility class 写在 JSX** 上,颜色一律用 `@theme` token(`bg-panel`/`text-ink`/`text-muted`/`text-accent`/`text-up`/`text-down` 等),**不写死 hex、不新增手写组件类**。`src/index.css` 只含 `@import "tailwindcss"` + `@theme` 色板 + `@layer base` 基础样式 + 极少数无法 utility 化的全局钩子/动画(`@keyframes modal-slide-right`、`.drawing-menu .modal-body`/`.action-confirm .modal-body` 的 float 布局覆盖钩子)。图表库/primitive 的 canvas 颜色是 TS 常量,独立于 CSS,保持不动。
 
@@ -89,4 +89,4 @@ pnpm preview     # 预览生产构建
 - `src/indicators/` — 指标子系统:`IndicatorController`(`IndicatorConfig` 开关/参数/`lineStyles` 每线样式 + 主图默认色常量,装配主图 MA/EMA/BBI/BOLL + 副图 series、十字光标图例分流 `ChartLegend{ohlcv, indicators}`)、`SubChartIndicator.ts`(单个副图指标实例,应用参数与线样式覆盖)、`IndicatorAxis.ts`(指标值价格轴标签 + 副图左上角角标 primitive)、`subCharts.ts`(副图指标定义 RSI/MACD/KDJ/WR/CCI/OBV/ATR/DMI)、`editorMeta.ts`(`INDICATOR_META` 编辑面板元数据:参数 + 输出线)、`ma.ts`/`ema.ts`/`bbi.ts`/`boll.ts`/`rsi.ts`/`macd.ts`/`kdj.ts`/`wr.ts`/`cci.ts`/`obv.ts`/`atr.ts`/`dmi.ts` 纯函数。详细约定与新指标扩展路径见 `src/indicators/CLAUDE.md`
 - `src/index.css` — 样式唯一入口:Tailwind(`@import "tailwindcss"`)+ `@theme` 深色色板 token(`bg-panel`/`text-ink`/`text-muted`/`text-accent`/`text-up`/`text-down` 等)+ `@layer base` 基础样式;仅保留极少数无法 utility 化的全局钩子/动画(`@keyframes`、float 布局覆盖)
 - `src/data/stocks.ts` — 常用 A 股清单与名称映射(自选/浏览用)
-- `src/components/` — 布局:App(编排)、KLineChart(图表壳)、IndicatorBar(顶部指标区)、DrawToolbar(左侧画线栏)、Sidebar(右侧自选/浏览)、PriceInput(可复用价格输入:滚轮 1/10/100 tick、精确 0.01,画线编辑/文本标注/操作线创建共用)、`topbar/`(TopBar + StockSearch + SettingsDialog,`UserSettings` 持久化到 `mp_settings`)、`modal/`(ModalProvider 全局弹窗系统 + BaseModal 统一弹窗基础外壳,所有弹窗/浮层由此衍生)
+- `src/components/` — React 层(渲染 + 事件接线):App(编排)、KLineChart(图表壳)、IndicatorBar(顶部指标区)、DrawToolbar(左侧画线栏)、Sidebar(右侧自选/浏览)、PriceInput(可复用价格输入:滚轮 1/10/100 tick、精确 0.01,画线编辑/文本标注/操作线创建共用)、`topbar/`(TopBar + StockSearch + SettingsDialog,`UserSettings` 持久化到 `mp_settings`)、`modal/`(ModalProvider 全局弹窗系统 + BaseModal 统一弹窗基础外壳,所有弹窗/浮层由此衍生)。详细约定与弹窗/样式坑见 `src/components/CLAUDE.md`
