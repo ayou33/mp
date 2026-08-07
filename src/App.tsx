@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import HomeIcon from '@iconify-react/material-symbols-light/home'
+import HomeIcon from '@iconify-react/material-symbols/home'
 import { fetchKline, fetchOlderKline, normalizeCode, PERIOD_LABEL, type KlinePeriod } from './api/stock'
 import { DrawToolbar } from './components/DrawToolbar'
 import { KLineChart } from './components/KLineChart'
@@ -38,6 +38,52 @@ function loadSettings(): UserSettings {
   return DEFAULT_SETTINGS
 }
 
+/** 指标默认配置(含全部参数与空 lineStyles;编辑面板未覆盖的线用渲染层默认色) */
+function defaultIndicatorConfig(): IndicatorConfig {
+  return {
+    showMA: false,
+    showEMA: false,
+    showBBI: true,
+    showBOLL: false,
+    showRSI: false,
+    showMACD: true,
+    showKDJ: true,
+    showWR: false,
+    showCCI: false,
+    showOBV: false,
+    showATR: false,
+    showDMI: false,
+    maPeriods: [5, 10, 20],
+    emaPeriods: [5, 10, 20],
+    bbiPeriods: [3, 6, 12, 24],
+    bollPeriod: 20,
+    bollStdDev: 2,
+    rsiPeriod: 14,
+    macdFast: 12,
+    macdSlow: 26,
+    macdSignal: 9,
+    kdjPeriod: 9,
+    kdjKSmooth: 3,
+    kdjDSmooth: 3,
+    wrPeriods: [6, 14],
+    cciPeriod: 14,
+    atrPeriod: 14,
+    dmiPeriod: 14,
+    lineStyles: {},
+  }
+}
+
+/** 读取持久化的指标配置(结构化 JSON,后续可扩展为服务器同步);缺字段回退默认 */
+function loadIndicatorConfig(): IndicatorConfig {
+  try {
+    const raw = localStorage.getItem('mp_indicator_config')
+    if (raw) return { ...defaultIndicatorConfig(), ...JSON.parse(raw) }
+  } catch {
+    /* 忽略损坏数据 */
+  }
+  return defaultIndicatorConfig()
+}
+
 export default function App() {
   const [code, setCode] = useState(DEFAULT_CODE)
   const [name, setName] = useState('上证指数')
@@ -48,16 +94,28 @@ export default function App() {
   const [drawingEnabled, setDrawingEnabled] = useState(false)
   const [fibonacciEnabled, setFibonacciEnabled] = useState(false)
   const [lineTool, setLineTool] = useState<LineType | null>(null)
+  const [actionEnabled, setActionEnabled] = useState(false)
+  const [rectEnabled, setRectEnabled] = useState(false)
+  const [measureEnabled, setMeasureEnabled] = useState(false)
+  const [fibExtEnabled, setFibExtEnabled] = useState(false)
+  const [verticalEnabled, setVerticalEnabled] = useState(false)
+  const [textEnabled, setTextEnabled] = useState(false)
   const [clearSignal, setClearSignal] = useState(0)
 
-  const [indicatorConfig, setIndicatorConfig] = useState<IndicatorConfig>({
-    showMA: false,
-    showBBI: true,
-    showRSI: false,
-    showMACD: true,
-    showKDJ: true,
-    maPeriods: [5, 10, 20],
-  })
+  /** 复位全部画线模式开关(切新工具/右键取消画线时使用;画线模式互斥) */
+  const clearDrawingModes = useCallback(() => {
+    setDrawingEnabled(false)
+    setFibonacciEnabled(false)
+    setLineTool(null)
+    setActionEnabled(false)
+    setRectEnabled(false)
+    setMeasureEnabled(false)
+    setFibExtEnabled(false)
+    setVerticalEnabled(false)
+    setTextEnabled(false)
+  }, [])
+
+  const [indicatorConfig, setIndicatorConfig] = useState<IndicatorConfig>(loadIndicatorConfig)
   const [chartLegend, setChartLegend] = useState<ChartLegend>({ ohlcv: [], indicators: [] })
   const [latestVisible, setLatestVisible] = useState(true)
   const [backSignal, setBackSignal] = useState(0)
@@ -82,6 +140,14 @@ export default function App() {
       /* 忽略存储失败 */
     }
   }, [watchlist])
+  // 指标配置(参数 + 线样式)持久化到 localStorage;结构化 JSON,后续可扩展为服务器同步
+  useEffect(() => {
+    try {
+      localStorage.setItem('mp_indicator_config', JSON.stringify(indicatorConfig))
+    } catch {
+      /* 忽略存储失败 */
+    }
+  }, [indicatorConfig])
 
   const codeRef = useRef(code)
   codeRef.current = code
@@ -169,33 +235,107 @@ export default function App() {
   }
 
   return (
-    <div className="app">
-      {error && <div className="error-banner">{error}</div>}
+    <div className="flex h-full flex-col gap-1.5">
+      {error && <div className="rounded-lg bg-up/10 px-4 py-2 text-sm text-up">{error}</div>}
 
       <TopBar
         period={period}
         onPeriodChange={changePeriod}
         indicatorConfig={indicatorConfig}
         onIndicatorConfigChange={setIndicatorConfig}
+        searchDefault={code}
+        onSearch={search}
         onOpenSettings={openSettings}
       />
 
-      <div className="main-area">
+      <div className="flex min-h-0 flex-1 gap-1.5">
         <DrawToolbar
           drawingEnabled={drawingEnabled}
           fibonacciEnabled={fibonacciEnabled}
           lineTool={lineTool}
-          onToggleDrawing={() => setDrawingEnabled((v) => !v)}
-          onToggleFibonacci={() => setFibonacciEnabled((v) => !v)}
-          onLineTool={setLineTool}
+          actionEnabled={actionEnabled}
+          rectEnabled={rectEnabled}
+          measureEnabled={measureEnabled}
+          fibExtEnabled={fibExtEnabled}
+          verticalEnabled={verticalEnabled}
+          textEnabled={textEnabled}
+          onToggleDrawing={() => {
+            if (drawingEnabled) setDrawingEnabled(false)
+            else {
+              clearDrawingModes()
+              setDrawingEnabled(true)
+            }
+          }}
+          onToggleFibonacci={() => {
+            if (fibonacciEnabled) setFibonacciEnabled(false)
+            else {
+              clearDrawingModes()
+              setFibonacciEnabled(true)
+            }
+          }}
+          onLineTool={(t) => {
+            if (lineTool === t) setLineTool(null)
+            else {
+              clearDrawingModes()
+              setLineTool(t)
+            }
+          }}
+          onToggleAction={() => {
+            if (actionEnabled) setActionEnabled(false)
+            else {
+              clearDrawingModes()
+              setActionEnabled(true)
+            }
+          }}
+          onToggleRect={() => {
+            if (rectEnabled) setRectEnabled(false)
+            else {
+              clearDrawingModes()
+              setRectEnabled(true)
+            }
+          }}
+          onToggleMeasure={() => {
+            if (measureEnabled) setMeasureEnabled(false)
+            else {
+              clearDrawingModes()
+              setMeasureEnabled(true)
+            }
+          }}
+          onToggleFibExt={() => {
+            if (fibExtEnabled) setFibExtEnabled(false)
+            else {
+              clearDrawingModes()
+              setFibExtEnabled(true)
+            }
+          }}
+          onToggleVertical={() => {
+            if (verticalEnabled) setVerticalEnabled(false)
+            else {
+              clearDrawingModes()
+              setVerticalEnabled(true)
+            }
+          }}
+          onToggleText={() => {
+            if (textEnabled) setTextEnabled(false)
+            else {
+              clearDrawingModes()
+              setTextEnabled(true)
+            }
+          }}
           onClear={() => setClearSignal((s) => s + 1)}
         />
 
-        <div className="chart-wrap">
+        <div className="chart-wrap relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-t-lg bg-panel2">
           <KLineChart
             bars={bars}
             drawingEnabled={drawingEnabled}
             fibonacciEnabled={fibonacciEnabled}
+            actionEnabled={actionEnabled}
+            rectEnabled={rectEnabled}
+            measureEnabled={measureEnabled}
+            fibExtEnabled={fibExtEnabled}
+            verticalEnabled={verticalEnabled}
+            textEnabled={textEnabled}
             clearSignal={clearSignal}
             indicatorConfig={indicatorConfig}
             onIndicatorLegend={setChartLegend}
@@ -203,32 +343,39 @@ export default function App() {
             onLatestVisibleChange={setLatestVisible}
             backSignal={backSignal}
             lineTool={lineTool}
+            onCancelDrawing={clearDrawingModes}
+            highLowStyle={settings.highLowStyle}
             storageKey={drawingStorageKey(code, period)}
           />
-          {/* 右上:OHLCV + 代码 + 周期 + 名称;名称下方"回到最新"按钮 */}
-          <div className="chart-overlay chart-overlay-tr">
-            {chartLegend.ohlcv.map((e) => (
-              <span key={e.label} className="chart-overlay-ohlcv" style={{ color: e.color }}>
-                {e.label} {e.value}
+          {/* 右上:OHLCV + 代码 + 周期 + 名称(上行);「回到最新」按钮独立(不与其共父级) */}
+          <div className="pointer-events-none absolute right-[72px] top-3 z-10 flex flex-col items-end gap-0.5 whitespace-nowrap">
+            <div className="flex flex-row items-baseline gap-0.5">
+              {chartLegend.ohlcv.map((e) => (
+                <span key={e.label} className="whitespace-nowrap text-sm leading-[1.4] tabular-nums" style={{ color: e.color }}>
+                  {e.label} {e.value}
+                </span>
+              ))}
+              <span className="text-xs text-muted">
+                {code.toUpperCase()} · {PERIOD_LABEL[period]}
               </span>
-            ))}
-            <span className="chart-overlay-code">
-              {code.toUpperCase()} · {PERIOD_LABEL[period]}
-            </span>
-            <span className="chart-overlay-name-col">
-              <span className="chart-overlay-name">{name || '—'}</span>
-              {!latestVisible && (
-                <button className="back-latest" title="回到最新" onClick={() => setBackSignal((s) => s + 1)}>
-                  <HomeIcon width="14" height="14" />
-                </button>
-              )}
-            </span>
+              <span> </span>
+              <span className="text-xl font-semibold text-white">{name || '—'}</span>
+            </div>
+            {!latestVisible && (
+              <button
+                className="pointer-events-auto mt-2 inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-accent bg-transparent text-xs text-accent hover:bg-accent/10"
+                title="回到最新"
+                onClick={() => setBackSignal((s) => s + 1)}
+              >
+                <HomeIcon width="14" height="14" />
+              </button>
+            )}
           </div>
           {/* 左上:主图指标值区(MA/BBI 标签+值,跟随十字线) */}
           {chartLegend.indicators.length > 0 && (
-            <div className="chart-overlay chart-overlay-tl">
+            <div className="pointer-events-none absolute left-4 top-3 z-10 flex flex-row flex-wrap items-center gap-0.5">
               {chartLegend.indicators.map((e) => (
-                <span key={e.label} className="chart-overlay-indicator" style={{ color: e.color }}>
+                <span key={e.label} className="text-xs leading-[1.4]" style={{ color: e.color }}>
                   {e.label}
                   {e.value !== null && ` ${e.value}`}
                 </span>
@@ -244,8 +391,6 @@ export default function App() {
           onAdd={addToWatchlist}
           onRemove={removeFromWatchlist}
           onSelect={search}
-          onSearch={search}
-          searchDefault={DEFAULT_CODE}
         />
       </div>
     </div>

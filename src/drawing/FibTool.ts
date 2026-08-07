@@ -1,6 +1,6 @@
 import { DrawingTool, HIT_THRESHOLD, type LocalPoint, type Point } from './DrawingTool'
 import { FibonacciPrimitive, type FibDataSource, type FibDrawing } from './FibonacciPrimitive'
-import type { DrawingRef, SerializedDrawing } from './types'
+import type { DrawingRef, DrawingSource, SerializedDrawing } from './types'
 
 interface DragFibAnchor {
   fibIndex: number
@@ -18,14 +18,13 @@ function distToSegment(px: number, py: number, x1: number, y1: number, x2: numbe
 
 /**
  * 斐波那契回调工具:基于自绘 FibonacciPrimitive。
- * 两次点击定义起止锚点、十字光标预览、锚点拖拽、删除/只读/价格编辑 + 统一序列化回写。
+ * 两次点击定义起止锚点、十字光标预览、锚点拖拽、删除/价格编辑 + 统一序列化回写。
  */
 export class FibTool extends DrawingTool {
   readonly kind = 'fib' as const
   private _primitive: FibonacciPrimitive
   private _data: FibDataSource = { fibs: [], pending: [], preview: null }
   private _nextId = 1
-  private _enabled = false
   private _drag: DragFibAnchor | null = null
   private _hoverId: number | null = null
 
@@ -50,6 +49,40 @@ export class FibTool extends DrawingTool {
     d.pending = []
     d.preview = null
     this._primitive.requestUpdate?.()
+  }
+
+  clearUser(): void {
+    const d = this._data
+    d.fibs = d.fibs.filter((f) => f.source === 'system')
+    d.pending = []
+    d.preview = null
+    this._primitive.requestUpdate?.()
+  }
+
+  /** 取消进行中的放置(清除未完成锚点与预览),供右键取消画线模式时清理 */
+  cancelPending(): void {
+    const d = this._data
+    d.pending = []
+    d.preview = null
+    this._primitive.requestUpdate?.()
+  }
+
+  getSource(ref: DrawingRef): DrawingSource | null {
+    if (ref.kind !== 'fib') return null
+    return this._data.fibs.find((f) => f.id === ref.id)?.source ?? null
+  }
+
+  systemAdd(item: SerializedDrawing): void {
+    if (item.kind !== 'fib' || !item.p1 || !item.p2) return
+    const d = this._data
+    d.fibs.push({
+      id: this._nextId++,
+      p1: { time: item.p1.time, price: item.p1.price },
+      p2: { time: item.p2.time, price: item.p2.price },
+      source: 'system',
+    })
+    this._primitive.requestUpdate?.()
+    this.notifyChange()
   }
 
   hitTestControls(x: number, y: number): DrawingRef | null {
@@ -119,10 +152,11 @@ export class FibTool extends DrawingTool {
   }
 
   onPointerDown(_e: PointerEvent, local: LocalPoint): boolean {
-    // 拖拽命中不依赖启用状态:关闭工具后仍可调整已画锚点;readonly 不可拖
+    // 拖拽命中不依赖启用状态:关闭工具后仍可调整已画锚点;system 对象不可拖
     const fibs = this._data.fibs
     for (let fi = 0; fi < fibs.length; fi++) {
-      if (fibs[fi].readonly) continue
+      // 用户不可拖拽:系统对象(system 归系统程序管,拖拽=修改)
+      if (fibs[fi].source === 'system') continue
       const anchors = [fibs[fi].p1, fibs[fi].p2]
       for (let ai = 0; ai < anchors.length; ai++) {
         const ax = this.chart.timeScale().timeToCoordinate(anchors[ai].time)
@@ -168,19 +202,6 @@ export class FibTool extends DrawingTool {
     this.notifyChange()
   }
 
-  setReadonly(ref: DrawingRef, v: boolean): void {
-    if (ref.kind !== 'fib') return
-    const fib = this._data.fibs.find((f) => f.id === ref.id)
-    if (fib) fib.readonly = v
-    this._primitive.requestUpdate?.()
-    this.notifyChange()
-  }
-
-  isReadonly(ref: DrawingRef): boolean {
-    if (ref.kind !== 'fib') return false
-    return this._data.fibs.find((f) => f.id === ref.id)?.readonly === true
-  }
-
   getControlPointPrice(ref: DrawingRef): number | null {
     if (ref.kind !== 'fib') return null
     const fib = this._data.fibs.find((f) => f.id === ref.id)
@@ -191,7 +212,8 @@ export class FibTool extends DrawingTool {
   setControlPointPrice(ref: DrawingRef, price: number): void {
     if (ref.kind !== 'fib' || !Number.isFinite(price)) return
     const fib = this._data.fibs.find((f) => f.id === ref.id)
-    if (!fib || fib.readonly) return
+    // 底层不校验 source:用户权限由 DrawingTools 用户入口统一校验
+    if (!fib) return
     if (ref.point === 1) fib.p2.price = price
     else fib.p1.price = price
     this._primitive.requestUpdate?.()
@@ -204,7 +226,7 @@ export class FibTool extends DrawingTool {
       kind: 'fib',
       p1: { time: String(f.p1.time), price: f.p1.price },
       p2: { time: String(f.p2.time), price: f.p2.price },
-      readonly: f.readonly === true ? true : undefined,
+      source: f.source === 'system' ? 'system' : undefined,
     }))
   }
 
@@ -219,7 +241,7 @@ export class FibTool extends DrawingTool {
         id: s.id,
         p1: { time: s.p1.time, price: s.p1.price },
         p2: { time: s.p2.time, price: s.p2.price },
-        readonly: s.readonly === true ? true : undefined,
+        source: s.source,
       })
       this._nextId = Math.max(this._nextId, s.id + 1)
     }

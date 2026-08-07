@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import CloseIcon from '@iconify-react/material-symbols-light/close'
+import { BaseModal } from './BaseModal'
 
 export type ModalPlacement = 'center' | 'right'
 
@@ -93,17 +93,17 @@ function ModalStack({ modals, onClose }: { modals: ModalConfig[]; onClose: (key?
         const placement = m.placement ?? 'center'
         const content = typeof m.content === 'function' ? m.content({ close: () => onClose(m.key) }) : m.content
         return (
-          <div key={m.key} className={`modal-layer modal-layer-${placement}`} style={{ zIndex: 1000 + i }}>
-            <div className="modal-backdrop" onClick={() => isTop && onClose(m.key)} />
-            <div className={`modal-dialog modal-dialog-${placement}`} style={placement === 'center' && m.width ? { width: m.width } : undefined}>
-              <div className="modal-header">
-                <span className="modal-title">{m.title}</span>
-                <button className="modal-close" onClick={() => onClose(m.key)}>
-                  <CloseIcon width="16" height="16" />
-                </button>
-              </div>
-              <div className="modal-body">{content}</div>
-            </div>
+          <div
+            key={m.key}
+            className={`fixed inset-0 flex ${
+              placement === 'right' ? 'items-stretch justify-end' : 'items-center justify-center'
+            }`}
+            style={{ zIndex: 1000 + i }}
+          >
+            <div className="absolute inset-0 bg-black/50" onClick={() => isTop && onClose(m.key)} />
+            <BaseModal title={m.title} onClose={() => onClose(m.key)} placement={placement} width={m.width}>
+              {content}
+            </BaseModal>
           </div>
         )
       })}

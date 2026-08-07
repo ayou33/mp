@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 
 // 腾讯行情接口 CORS 头不稳定,统一走同源代理,由 Vite 服务器端转发,彻底绕开跨域
 const tencentStockProxy = {
@@ -11,7 +12,7 @@ const tencentStockProxy = {
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   server: {
     proxy: {
       '/api': tencentStockProxy,

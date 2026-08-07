@@ -3,22 +3,27 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "packageManager": "pnpm@11.2.2",
   "scripts": {
+    "preinstall": "node -e \"if(!/pnpm/.test(process.env.npm_config_user_agent||'')){console.error('请使用 pnpm 安装依赖:npm i -g pnpm,然后执行 pnpm install');process.exit(1)}\"",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
-    "@iconify-react/material-symbols-light": "^1.0.30",
+    "@fontsource-variable/ibm-plex-sans": "^5.3.0",
+    "@iconify-react/material-symbols": "^1.0.30",
     "fancy-canvas": "^2.1.0",
     "lightweight-charts": "^5.2.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.0.5",
+    "tailwindcss": "^4.3.3",
     "typescript": "^5.9.3",
     "vite": "^8.2.0"
   }

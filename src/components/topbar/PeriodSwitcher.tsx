@@ -14,11 +14,13 @@ const PERIODS: Array<{ key: KlinePeriod; label: string }> = [
 /** 周期切换:日 / 周 / 月 */
 export function PeriodSwitcher({ period, onChange }: PeriodSwitcherProps) {
   return (
-    <div className="period-switcher">
+    <div className="inline-flex overflow-hidden rounded-md border border-white/15">
       {PERIODS.map((p) => (
         <button
           key={p.key}
-          className={period === p.key ? 'period-btn active' : 'period-btn'}
+          className={`cursor-pointer border-none bg-transparent px-3.5 py-1.5 text-sm text-muted hover:text-ink ${
+            period === p.key ? 'bg-accent text-white' : ''
+          }`}
           onClick={() => onChange(p.key)}
         >
           {p.label}

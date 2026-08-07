@@ -1,15 +1,19 @@
 import { useState } from 'react'
 import type { KlinePeriod } from '../../api/stock'
+import type { HighLowMarkStyle } from '../../chart/VisibleRangeMark'
 
 /** 用户设置(全局 + 个人,当前存储本地,后续可能接服务器) */
 export interface UserSettings {
   defaultPeriod: KlinePeriod
   redUp: boolean
+  /** 可见高/低点标注呈现方式:引线 / 价格线 */
+  highLowStyle: HighLowMarkStyle
 }
 
 export const DEFAULT_SETTINGS: UserSettings = {
   defaultPeriod: 'day',
   redUp: true,
+  highLowStyle: 'leader',
 }
 
 const PERIODS: Array<{ key: KlinePeriod; label: string }> = [
@@ -29,16 +33,18 @@ export function SettingsDialog({ initial, onSave, onClose }: SettingsDialogProps
   const [form, setForm] = useState(initial)
 
   return (
-    <div className="settings-dialog">
-      <div className="settings-section">
-        <div className="settings-section-title">个人设置</div>
-        <div className="settings-row">
-          <span className="settings-label">默认周期</span>
-          <div className="settings-seg">
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2.5">
+        <div className="text-sm font-semibold text-white">个人设置</div>
+        <div className="flex items-center justify-between">
+          <span className="text-ink">默认周期</span>
+          <div className="inline-flex overflow-hidden rounded-md border border-white/15">
             {PERIODS.map((p) => (
               <button
                 key={p.key}
-                className={form.defaultPeriod === p.key ? 'active' : ''}
+                className={`cursor-pointer border-none bg-transparent px-3.5 py-1.5 text-sm text-muted ${
+                  form.defaultPeriod === p.key ? 'bg-accent text-white' : ''
+                }`}
                 onClick={() => setForm({ ...form, defaultPeriod: p.key })}
               >
                 {p.label}
@@ -48,25 +54,50 @@ export function SettingsDialog({ initial, onSave, onClose }: SettingsDialogProps
         </div>
       </div>
 
-      <div className="settings-section">
-        <div className="settings-section-title">全局设置</div>
-        <label className="settings-row">
-          <span className="settings-label">红涨绿跌</span>
+      <div className="flex flex-col gap-2.5">
+        <div className="text-sm font-semibold text-white">全局设置</div>
+        <label className="flex items-center justify-between">
+          <span className="text-ink">红涨绿跌</span>
           <input
             type="checkbox"
             checked={form.redUp}
             onChange={(e) => setForm({ ...form, redUp: e.target.checked })}
           />
         </label>
-        <p className="settings-hint">全局设置后续可能配合接口在服务器存储</p>
+        <div className="flex items-center justify-between">
+          <span className="text-ink">高/低点标注</span>
+          <div className="inline-flex overflow-hidden rounded-md border border-white/15">
+            <button
+              className={`cursor-pointer border-none bg-transparent px-3.5 py-1.5 text-sm text-muted ${
+                form.highLowStyle === 'leader' ? 'bg-accent text-white' : ''
+              }`}
+              onClick={() => setForm({ ...form, highLowStyle: 'leader' })}
+            >
+              引线
+            </button>
+            <button
+              className={`cursor-pointer border-none bg-transparent px-3.5 py-1.5 text-sm text-muted ${
+                form.highLowStyle === 'price-line' ? 'bg-accent text-white' : ''
+              }`}
+              onClick={() => setForm({ ...form, highLowStyle: 'price-line' })}
+            >
+              价格线
+            </button>
+          </div>
+        </div>
+        <p className="m-0 text-xs text-muted">引线:极值点 + 短引线;价格线:半透明横线(减少干扰)</p>
+        <p className="m-0 text-xs text-muted">全局设置后续可能配合接口在服务器存储</p>
       </div>
 
-      <div className="modal-actions">
-        <button className="modal-btn" onClick={onClose}>
+      <div className="mt-4 flex justify-end gap-2">
+        <button
+          className="cursor-pointer rounded-[4px] border border-border bg-transparent px-3.5 py-1.5 text-sm text-ink hover:bg-white/5"
+          onClick={onClose}
+        >
           取消
         </button>
         <button
-          className="modal-btn modal-btn-primary"
+          className="cursor-pointer rounded-[4px] border border-accent bg-accent px-3.5 py-1.5 text-sm text-white hover:bg-accent-hover"
           onClick={() => {
             onSave(form)
             onClose()

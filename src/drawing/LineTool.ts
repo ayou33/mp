@@ -1,6 +1,6 @@
 import { DrawingTool, HIT_THRESHOLD, type LocalPoint, type Point } from './DrawingTool'
 import { LinePrimitive, lineEndpoints, type LineDataSource, type LineDrawing, type LineType } from './LinePrimitive'
-import type { DrawingRef, SerializedDrawing } from './types'
+import type { DrawingRef, DrawingSource, SerializedDrawing } from './types'
 
 interface DragLineAnchor {
   lineIndex: number
@@ -18,14 +18,13 @@ function distToSegment(px: number, py: number, x1: number, y1: number, x2: numbe
 
 /**
  * 线段/射线/直线工具:基于自绘 LinePrimitive。
- * 两次点击放置锚点、十字光标预览、锚点拖拽吸附时间、删除/只读/价格编辑 + 统一序列化回写。
+ * 两次点击放置锚点、十字光标预览、锚点拖拽吸附时间、删除/价格编辑 + 统一序列化回写。
  */
 export class LineTool extends DrawingTool {
   readonly kind = 'line' as const
   private _primitive: LinePrimitive
   private _data: LineDataSource = { lines: [], pending: [], preview: null }
   private _nextId = 1
-  private _enabled = false
   private _type: LineType = 'segment'
   private _drag: DragLineAnchor | null = null
   private _hoverId: number | null = null
@@ -63,6 +62,41 @@ export class LineTool extends DrawingTool {
     d.pending = []
     d.preview = null
     this._primitive.requestUpdate?.()
+  }
+
+  clearUser(): void {
+    const d = this._data
+    d.lines = d.lines.filter((l) => l.source === 'system')
+    d.pending = []
+    d.preview = null
+    this._primitive.requestUpdate?.()
+  }
+
+  /** 取消进行中的放置(清除未完成锚点与预览),供右键取消画线模式时清理 */
+  cancelPending(): void {
+    const d = this._data
+    d.pending = []
+    d.preview = null
+    this._primitive.requestUpdate?.()
+  }
+
+  getSource(ref: DrawingRef): DrawingSource | null {
+    if (ref.kind !== 'line') return null
+    return this._data.lines.find((l) => l.id === ref.id)?.source ?? null
+  }
+
+  systemAdd(item: SerializedDrawing): void {
+    if (item.kind !== 'line' || !item.p1 || !item.p2) return
+    const d = this._data
+    d.lines.push({
+      id: this._nextId++,
+      type: item.lineType ?? 'segment',
+      p1: { time: item.p1.time, price: item.p1.price },
+      p2: { time: item.p2.time, price: item.p2.price },
+      source: 'system',
+    })
+    this._primitive.requestUpdate?.()
+    this.notifyChange()
   }
 
   hitTestControls(x: number, y: number): DrawingRef | null {
@@ -137,10 +171,11 @@ export class LineTool extends DrawingTool {
   }
 
   onPointerDown(_e: PointerEvent, local: LocalPoint): boolean {
-    // 拖拽命中不依赖启用状态:关闭工具后仍可调整已画锚点;readonly 不可拖
+    // 拖拽命中不依赖启用状态:关闭工具后仍可调整已画锚点;system 对象不可拖
     const lines = this._data.lines
     for (let li = 0; li < lines.length; li++) {
-      if (lines[li].readonly) continue
+      // 用户不可拖拽:系统对象(system 归系统程序管,拖拽=修改)
+      if (lines[li].source === 'system') continue
       const anchors = [lines[li].p1, lines[li].p2]
       for (let ai = 0; ai < anchors.length; ai++) {
         const ax = this.chart.timeScale().timeToCoordinate(anchors[ai].time)
@@ -186,19 +221,6 @@ export class LineTool extends DrawingTool {
     this.notifyChange()
   }
 
-  setReadonly(ref: DrawingRef, v: boolean): void {
-    if (ref.kind !== 'line') return
-    const line = this._data.lines.find((l) => l.id === ref.id)
-    if (line) line.readonly = v
-    this._primitive.requestUpdate?.()
-    this.notifyChange()
-  }
-
-  isReadonly(ref: DrawingRef): boolean {
-    if (ref.kind !== 'line') return false
-    return this._data.lines.find((l) => l.id === ref.id)?.readonly === true
-  }
-
   getControlPointPrice(ref: DrawingRef): number | null {
     if (ref.kind !== 'line') return null
     const line = this._data.lines.find((l) => l.id === ref.id)
@@ -209,7 +231,8 @@ export class LineTool extends DrawingTool {
   setControlPointPrice(ref: DrawingRef, price: number): void {
     if (ref.kind !== 'line' || !Number.isFinite(price)) return
     const line = this._data.lines.find((l) => l.id === ref.id)
-    if (!line || line.readonly) return
+    // 底层不校验 source:用户权限由 DrawingTools 用户入口统一校验
+    if (!line) return
     if (ref.point === 1) line.p2.price = price
     else line.p1.price = price
     this._primitive.requestUpdate?.()
@@ -223,7 +246,7 @@ export class LineTool extends DrawingTool {
       lineType: l.type,
       p1: { time: String(l.p1.time), price: l.p1.price },
       p2: { time: String(l.p2.time), price: l.p2.price },
-      readonly: l.readonly === true ? true : undefined,
+      source: l.source === 'system' ? 'system' : undefined,
     }))
   }
 
@@ -239,7 +262,7 @@ export class LineTool extends DrawingTool {
         type: s.lineType ?? 'segment',
         p1: { time: s.p1.time, price: s.p1.price },
         p2: { time: s.p2.time, price: s.p2.price },
-        readonly: s.readonly === true ? true : undefined,
+        source: s.source,
       })
       this._nextId = Math.max(this._nextId, s.id + 1)
     }

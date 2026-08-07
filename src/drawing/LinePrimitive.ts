@@ -8,7 +8,7 @@ import type {
   SeriesAttachedParameter,
   Time,
 } from 'lightweight-charts'
-import type { LineType } from './types'
+import type { DrawingSource, LineType } from './types'
 
 export type { LineType } from './types'
 
@@ -22,8 +22,8 @@ export interface LineDrawing {
   type: LineType
   p1: LinePoint
   p2: LinePoint
-  /** 只读标记:为 true 时锚点不可拖拽(不可编辑) */
-  readonly?: boolean
+  /** 归属(缺省 'user'):system 对象用户不可修改/删除 */
+  source?: DrawingSource
 }
 
 export interface LineDataSource {

@@ -9,6 +9,7 @@ import type {
   SeriesAttachedParameter,
   Time,
 } from 'lightweight-charts'
+import type { DrawingSource } from './types'
 
 // ---- 斐波那契类型与常量 ----
 
@@ -18,12 +19,13 @@ export interface FibPoint {
   price: number
 }
 
-/** 已完成的斐波那契(带唯一 id 与只读标记;控制点 p1/p2 可参数化直接读写) */
+/** 已完成的斐波那契(带唯一 id;控制点 p1/p2 可参数化直接读写) */
 export interface FibDrawing {
   id: number
   p1: FibPoint
   p2: FibPoint
-  readonly?: boolean
+  /** 归属(缺省 'user'):system 对象用户不可修改/删除 */
+  source?: DrawingSource
 }
 
 /** 斐波那契绘制的数据源(由 DrawingTools 持有并就地变更,primitive 每次渲染时读取) */

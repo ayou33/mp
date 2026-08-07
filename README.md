@@ -11,16 +11,18 @@
 
 ## 本地运行
 
+包管理器限定 **pnpm**(`packageManager` 字段 + `preinstall` 脚本强制,用 npm/yarn 安装会报错退出)。
+
 ```bash
-npm install
-npm run dev     # 打开 http://localhost:5173
+pnpm install
+pnpm dev        # 打开 http://localhost:5173
 ```
 
 生产构建:
 
 ```bash
-npm run build   # tsc -b && vite build
-npm run preview
+pnpm build      # tsc -b && vite build
+pnpm preview
 ```
 
 ## 功能

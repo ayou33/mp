@@ -8,14 +8,19 @@ import {
   type IChartApi,
   type ISeriesApi,
 } from 'lightweight-charts'
-import { DrawingTools, type DrawingRef, type RangeStats } from '../drawing/DrawingTools'
+import { DrawingTools, type ActionType, type DrawingRef, type RangeStats } from '../drawing/DrawingTools'
 import { loadDrawings, saveDrawings } from '../drawing/persistence'
 import type { LineType } from '../drawing/LinePrimitive'
 import { DrawingContextMenu } from './DrawingContextMenu'
 import { RangeStatsDialog } from './RangeStatsDialog'
+import { ActionTypeDialog } from './ActionTypeDialog'
+import { TextInputDialog } from './TextInputDialog'
+import { ActionConfirmOverlay } from './ActionConfirmOverlay'
 import { useModal } from './modal/ModalProvider'
 import { HistoryLoader, defaultViewRange } from '../chart/HistoryLoader'
 import { buildCandleData, fitPriceRange } from '../chart/candleData'
+import { VisibleRangeMark, type HighLowMarkStyle } from '../chart/VisibleRangeMark'
+import { CrosshairGainLabel } from '../chart/CrosshairGainLabel'
 import {
   IndicatorController,
   type ChartLegend,
@@ -38,6 +43,18 @@ interface KLineChartProps {
   drawingEnabled: boolean
   /** 斐波那契模式:开启后点击两次定义起止锚点,生成回调水平线 */
   fibonacciEnabled: boolean
+  /** 操作价格线模式:开启后点击图表选择操作类型并生成 */
+  actionEnabled: boolean
+  /** 矩形模式:开启后点击两次定义对角 */
+  rectEnabled: boolean
+  /** 测量模式:开启后点击两点显示价差/涨跌幅/根数 */
+  measureEnabled: boolean
+  /** 斐波那契扩展模式:开启后点击三次定义 A/B/C */
+  fibExtEnabled: boolean
+  /** 垂直线模式:开启后点击图表放置贯穿竖线 */
+  verticalEnabled: boolean
+  /** 文本标注模式:开启后点击图表输入文本 */
+  textEnabled: boolean
   /** 每次自增,触发一次清除所有价格线与斐波那契 */
   clearSignal: number
   /** 指标显示配置(MA/RSI 开关与周期) */
@@ -52,8 +69,12 @@ interface KLineChartProps {
   backSignal?: number
   /** 当前激活的画线工具(线段/射线/直线),null 表示未激活 */
   lineTool?: LineType | null
+  /** 画线模式激活时右键「取消画线」:复位各画线模式开关(状态由上层 App 持有) */
+  onCancelDrawing?: () => void
   /** 画线数据持久化 key(如 `${code}:${period}`);提供则换股/换周期时存取绘图,缺省不持久化 */
   storageKey?: string
+  /** 可见高/低点标注呈现方式(引线 / 价格线);缺省引线 */
+  highLowStyle?: HighLowMarkStyle
 }
 
 /** 图表壳:只负责创建/销毁图表、数据更新与模式开关接线,绘制交互逻辑在 DrawingTools */
@@ -61,6 +82,12 @@ export function KLineChart({
   bars,
   drawingEnabled,
   fibonacciEnabled,
+  actionEnabled,
+  rectEnabled,
+  measureEnabled,
+  fibExtEnabled,
+  verticalEnabled,
+  textEnabled,
   clearSignal,
   indicatorConfig,
   onIndicatorLegend,
@@ -68,7 +95,9 @@ export function KLineChart({
   onLatestVisibleChange,
   backSignal,
   lineTool,
+  onCancelDrawing,
   storageKey,
+  highLowStyle,
 }: KLineChartProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
@@ -77,15 +106,48 @@ export function KLineChart({
   const toolsRef = useRef<DrawingTools | null>(null)
   const indicatorsRef = useRef<IndicatorController | null>(null)
   const historyLoaderRef = useRef<HistoryLoader | null>(null)
-  // 画线对象左键菜单状态(坐标相对容器;isReadonly/price 供菜单项文案与价格输入框)
+  const visibleRangeMarkRef = useRef<VisibleRangeMark | null>(null)
+  const crosshairGainRef = useRef<CrosshairGainLabel | null>(null)
+  // 画线对象左键菜单状态(坐标相对容器;isSystem/canEdit/price 供菜单项禁用与价格输入框)
   const [menu, setMenu] = useState<{
     x: number
     y: number
     ref: DrawingRef
-    isReadonly: boolean
+    isSystem: boolean
+    canEdit: boolean
     price: number | null
   } | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+
+  // 操作价格线执行确认浮层:triggered 且 user 的对象,显示「已执行/未执行」按钮
+  const [confirmActions, setConfirmActions] = useState<Array<{ id: number; action: ActionType; x: number; y: number }>>([])
+  const refreshConfirmActions = useCallback(() => {
+    const tools = toolsRef.current
+    const series = candleRef.current
+    const container = containerRef.current
+    if (!tools || !series || !container) return
+    const items = tools
+      .serializeAll()
+      .filter(
+        (s) =>
+          s.kind === 'action-line' &&
+          s.status === 'triggered' &&
+          s.source !== 'system' &&
+          typeof s.price === 'number' &&
+          s.action,
+      )
+      .map((s) => {
+        const y = series.priceToCoordinate(s.price as number)
+        return { id: s.id, action: s.action as ActionType, x: container.clientWidth / 2, y: y ?? -9999 }
+      })
+      .filter((a) => a.y !== -9999)
+    setConfirmActions((prev) =>
+      prev.length === items.length &&
+      prev.every((p, i) => p.id === items[i].id && p.y === items[i].y && p.action === items[i].action)
+        ? prev
+        : items,
+    )
+  }, [])
 
   // 右键框选:选区矩形覆盖层 + 松开弹出区间统计弹窗
   const { open: openModal } = useModal()
@@ -111,11 +173,19 @@ export function KLineChart({
   onLoadMoreRef.current = onLoadMoreHistory
   const onLatestVisibleRef = useRef(onLatestVisibleChange)
   onLatestVisibleRef.current = onLatestVisibleChange
+  const onCancelDrawingRef = useRef(onCancelDrawing)
+  onCancelDrawingRef.current = onCancelDrawing
 
   // 模式开关实时同步到控制器(控制器非 React,由组件在渲染期推动)
   toolsRef.current?.setDrawingEnabled(drawingEnabled)
   toolsRef.current?.setFibEnabled(fibonacciEnabled)
   toolsRef.current?.setLineEnabled(lineTool ?? null)
+  toolsRef.current?.setRectEnabled(rectEnabled)
+  toolsRef.current?.setMeasureEnabled(measureEnabled)
+  toolsRef.current?.setFibExtEnabled(fibExtEnabled)
+  toolsRef.current?.setVerticalEnabled(verticalEnabled)
+  toolsRef.current?.setTextEnabled(textEnabled)
+  toolsRef.current?.setActionEnabled(actionEnabled)
 
   // 创建图表(仅一次,与 React 状态生命周期解耦)
   useEffect(() => {
@@ -147,7 +217,13 @@ export function KLineChart({
       borderUpColor: UP_COLOR, borderDownColor: DOWN_COLOR, wickUpColor: UP_COLOR, wickDownColor: DOWN_COLOR,
     })
     // 主图价格轴固定以支持垂直拖动;副图(autoScale)不受影响
-    candleSeries.priceScale().applyOptions({ autoScale: false })
+    // 默认渲染高度 = (整个可用高度 - 成交量最大高度) 的 4/5:
+    //   成交量占底部 20%(top 0.8),K 线渲染区间 [0.16, 0.80] 高度 = 0.64 = 0.80 × 4/5,
+    //   bottom 0.20 与成交量顶边(0.80)对齐,K 线最低价不侵入成交量区域
+    candleSeries.priceScale().applyOptions({
+      autoScale: false,
+      scaleMargins: { top: 0.16, bottom: 0.20 },
+    })
 
     // 成交量副图(绑定隐藏的独立价格轴,固定在图表下 20% 区域)
     const volumeSeries = chart.addSeries(HistogramSeries, {
@@ -164,27 +240,70 @@ export function KLineChart({
     const tools = new DrawingTools(chart, candleSeries, container, {
       getBarCount: () => barsRef.current.length,
       getBars: () => barsRef.current,
-      // 左键点击控制点 -> 弹出菜单(价格编辑/删除/只读);坐标钳制避免溢出容器
+      // 左键点击控制点 -> 弹出菜单(价格编辑/删除);坐标钳制避免溢出容器
       onRequestMenu: (ref, x, y) => {
         const t = toolsRef.current
         if (!t) return
         const mx = Math.max(0, Math.min(x, container.clientWidth - 150))
         const my = Math.max(0, Math.min(y, container.clientHeight - 96))
-        setMenu({ x: mx, y: my, ref, isReadonly: t.isReadonly(ref), price: t.getControlPointPrice(ref) })
+        const isSystem = t.getSource(ref) === 'system'
+        // 操作价格线:非 armed 状态锁定几何(只能确认执行),价格输入框禁用
+        const canEdit = !isSystem && (ref.kind !== 'action-line' || t.getActionStatus(ref) === 'armed')
+        setMenu({ x: mx, y: my, ref, isSystem, canEdit, price: t.getControlPointPrice(ref) })
+      },
+      // 操作价格线:激活模式点击图表 -> 弹窗选操作类型后创建(价格可在面板编辑)
+      onRequestCreateAction: (price) => {
+        openModal({
+          title: '操作价格线',
+          content: (api) => (
+            <ActionTypeDialog
+              price={price}
+              onSelect={(editedPrice, action) => {
+                toolsRef.current?.createAction(editedPrice, action)
+                api.close()
+              }}
+              onCancel={() => api.close()}
+            />
+          ),
+        })
+      },
+      // 文本标注:激活模式点击图表 -> 弹窗输入文本与价格,确认后回填创建标注
+      onRequestCreateText: (pt, submit) => {
+        openModal({
+          title: '文本标注',
+          content: (api) => (
+            <TextInputDialog
+              price={pt.price}
+              onSubmit={(text, editedPrice) => {
+                submit(text, editedPrice)
+                api.close()
+              }}
+              onCancel={() => api.close()}
+            />
+          ),
+        })
       },
       // 右键框选:拖动实时更新选区矩形;松开弹出区间统计
       onRangePreview: (rect) => setRangePreview(rect),
       onRangeSelect: (stats) => openRangeStats(stats),
-      // 画线数据变更 -> 实时保存到当前 storageKey(若已接入持久化)
+      // 画线模式激活时右键「取消画线」:复位各画线模式开关(状态由 App 持有)
+      onRequestCancelDrawing: () => onCancelDrawingRef.current?.(),
+      // 画线数据变更 -> 实时保存到当前 storageKey(若已接入持久化);刷新确认浮层
       onChange: () => {
         const key = storageKeyRef.current
         const tools = toolsRef.current
         if (key && tools) saveDrawings(key, tools.serializeAll())
+        refreshConfirmActions()
       },
     })
     tools.setDrawingEnabled(drawingEnabled)
     tools.setFibEnabled(fibonacciEnabled)
     tools.setLineEnabled(lineTool ?? null)
+    tools.setRectEnabled(rectEnabled)
+    tools.setMeasureEnabled(measureEnabled)
+    tools.setFibExtEnabled(fibExtEnabled)
+    tools.setVerticalEnabled(verticalEnabled)
+    tools.setTextEnabled(textEnabled)
 
     // 指标控制器:MA 主图叠加 + RSI 副图 + 十字光标图例(OHLCV 读自主图 series)
     const indicators = new IndicatorController(chart, indicatorConfig, {
@@ -201,6 +320,14 @@ export function KLineChart({
       (v) => onLatestVisibleRef.current?.(v),
     )
     historyLoaderRef.current = historyLoader
+
+    // 可见区间最高/最低价标注:监听时间轴可见范围,按设置样式(引线/价格线)呈现
+    const visibleRangeMark = new VisibleRangeMark(chart, candleSeries, () => barsRef.current, highLowStyle)
+    visibleRangeMarkRef.current = visibleRangeMark
+
+    // 距今涨幅标签:十字线所指 K 线 → 最新收盘价的涨幅,以时间轴标签形式显示(红涨绿跌)
+    const crosshairGain = new CrosshairGainLabel(chart, candleSeries, () => barsRef.current)
+    crosshairGainRef.current = crosshairGain
 
     // 容器尺寸变化时同步图表尺寸
     const resizeObserver = new ResizeObserver((entries) => {
@@ -221,6 +348,8 @@ export function KLineChart({
       tools.dispose()
       indicators.dispose()
       historyLoader.dispose()
+      visibleRangeMark.dispose()
+      crosshairGain.dispose()
       chart.remove()
       chartRef.current = null
       candleRef.current = null
@@ -228,6 +357,8 @@ export function KLineChart({
       toolsRef.current = null
       indicatorsRef.current = null
       historyLoaderRef.current = null
+      visibleRangeMarkRef.current = null
+      crosshairGainRef.current = null
     }
   }, [])
 
@@ -277,38 +408,51 @@ export function KLineChart({
     // 指标重算(MA/RSI)
     indicators.update(bars)
 
+    // 距今涨幅:按最近一次十字线位置基于新数据重算(换股后十字线所指 K 线不在了会隐藏)
+    crosshairGainRef.current?.update()
+
     // 画线持久化:
     // - 未接入 storageKey:保持原有行为,换股后清空绘图
     // - 接入 storageKey:仅当 key(股票/周期)或工具实例变化时,先保存旧 key 绘图,
     //   再清空,最后回写新 key 绘图;load-more 追加历史(bars 变、key 不变)不清绘图
     if (storageKey === undefined) {
-      tools.clearAll()
+      tools.systemClearAll()
     } else {
       const prev = persistRef.current
       if (prev.key !== storageKey || prev.tools !== tools) {
         if (prev.key && prev.tools && prev.key !== storageKey) {
           saveDrawings(prev.key, prev.tools.serializeAll())
         }
-        tools.clearAll()
+        // 换股/切周期:重置所有画线(含系统对象,由程序按新股票重算)
+        tools.systemClearAll()
         const saved = loadDrawings(storageKey)
         if (saved.length > 0) tools.restoreAll(saved)
         persistRef.current = { key: storageKey, tools }
       }
     }
 
-    // 价格轴固定(autoScale 关闭)以支持垂直拖动;换股后手动适配新数据价格区间
-    const range = fitPriceRange(bars)
-    if (range) chart.priceScale('right').setVisibleRange(range)
+    // 操作价格线:数据更新/恢复/换股/加载更多后重评触发,并刷新确认浮层
+    tools.checkTriggers(bars)
+    refreshConfirmActions()
 
     // 时间视图:右滑追加历史时保持原窗口(平移 prepend 数),否则默认视图(最后 1/4 + 右侧预留 1/4)
     const view = historyLoaderRef.current?.resolveRange(bars.length) ?? defaultViewRange(bars.length)
     chart.timeScale().setVisibleLogicalRange(view)
+
+    // 价格轴固定(autoScale 关闭)以支持垂直拖动;按当前可见 K 线(而非全部加载数据)适配价格区间
+    const range = fitPriceRange(bars, view)
+    if (range) chart.priceScale('right').setVisibleRange(range)
   }, [bars, storageKey])
 
   // 指标配置变化 -> 同步到控制器(增删 series、切换显示)
   useEffect(() => {
     indicatorsRef.current?.setConfig(indicatorConfig)
   }, [indicatorConfig])
+
+  // 高/低点呈现方式变化 -> 同步到可见区间标注控制器
+  useEffect(() => {
+    visibleRangeMarkRef.current?.setStyle(highLowStyle)
+  }, [highLowStyle])
 
   // 回到最新信号 -> 恢复默认视图(3/4 位置)
   useEffect(() => {
@@ -324,17 +468,30 @@ export function KLineChart({
   // 手动清除所有价格线与斐波那契
   useEffect(() => {
     if (clearSignal === 0) return
-    toolsRef.current?.clearAll()
-    // 同步清除持久化的绘图,避免刷新后又回写
-    if (persistRef.current.key) saveDrawings(persistRef.current.key, [])
-  }, [clearSignal])
+    const tools = toolsRef.current
+    if (!tools) return
+    // 用户「清除」:只清用户画线对象,保留 system 对象;清除后重新持久化剩余对象
+    tools.clearAll()
+    if (persistRef.current.key) saveDrawings(persistRef.current.key, tools.serializeAll())
+    refreshConfirmActions()
+  }, [clearSignal, refreshConfirmActions])
+
+  // 确认浮层:滚动/缩放时刷新位置
+  useEffect(() => {
+    if (confirmActions.length === 0) return
+    const chart = chartRef.current
+    if (!chart) return
+    const onRange = () => refreshConfirmActions()
+    chart.timeScale().subscribeVisibleLogicalRangeChange(onRange)
+    return () => chart.timeScale().unsubscribeVisibleLogicalRangeChange(onRange)
+  }, [confirmActions.length, refreshConfirmActions])
 
   return (
-    <div className="kline-chart-wrap">
-      <div ref={containerRef} className="kline-chart" />
+    <div className="relative h-full w-full">
+      <div ref={containerRef} className="absolute inset-0" />
       {rangePreview && (
         <div
-          className="range-select-overlay"
+          className="pointer-events-none absolute z-[15] border border-accent/60 bg-accent/10"
           style={{
             left: rangePreview.x,
             top: rangePreview.y,
@@ -343,13 +500,23 @@ export function KLineChart({
           }}
         />
       )}
+      {confirmActions.map((ca) => (
+        <ActionConfirmOverlay
+          key={ca.id}
+          action={ca.action}
+          x={ca.x}
+          y={ca.y}
+          onConfirm={(executed) => toolsRef.current?.confirmAction(ca.id, executed)}
+        />
+      ))}
       {menu && (
         <DrawingContextMenu
           ref={menuRef}
           x={menu.x}
           y={menu.y}
           drawingRef={menu.ref}
-          isReadonly={menu.isReadonly}
+          isSystem={menu.isSystem}
+          canEdit={menu.canEdit}
           price={menu.price}
           onPriceChange={(price) => {
             toolsRef.current?.setControlPointPrice(menu.ref, price)
@@ -358,10 +525,6 @@ export function KLineChart({
           onDelete={() => {
             toolsRef.current?.deleteDrawing(menu.ref)
             setMenu(null)
-          }}
-          onToggleReadonly={() => {
-            toolsRef.current?.setReadonly(menu.ref, !menu.isReadonly)
-            setMenu((m) => (m ? { ...m, isReadonly: !m.isReadonly } : null))
           }}
         />
       )}

@@ -1,13 +1,29 @@
 import { MismatchDirection, type IChartApi, type ISeriesApi, type MouseEventParams, type Time } from 'lightweight-charts'
-import { DrawingTool } from './DrawingTool'
+import { DrawingTool, type Point } from './DrawingTool'
 import { LineTool } from './LineTool'
+import { RectTool } from './RectTool'
+import { MeasureTool } from './MeasureTool'
 import { FibTool } from './FibTool'
+import { FibExtTool } from './FibExtTool'
 import { PriceLineTool } from './PriceLineTool'
-import type { LineType, SerializedDrawing } from './types'
+import { VerticalLineTool } from './VerticalLineTool'
+import { TextTool } from './TextTool'
+import { ActionPriceLineTool } from './ActionPriceLineTool'
+import type { ActionType, LineType, SerializedDrawing } from './types'
 import type { KlineBar } from '../types'
 
 // re-export 统一类型(兼容既有导入)
-export type { DrawingKind, DrawingRef, LineType, SerializedDrawing, AnchorPoint } from './types'
+export type {
+  ActionDirection,
+  ActionStatus,
+  ActionType,
+  DrawingKind,
+  DrawingRef,
+  DrawingSource,
+  LineType,
+  SerializedDrawing,
+  AnchorPoint,
+} from './types'
 export { HIT_THRESHOLD } from './DrawingTool'
 
 /** 右键框选区间统计 */
@@ -38,6 +54,12 @@ interface DrawingToolsOptions {
   onRangePreview?: (rect: { x: number; y: number; width: number; height: number } | null) => void
   /** 右键框选松开:弹出区间统计 */
   onRangeSelect?: (stats: RangeStats) => void
+  /** 操作价格线激活模式点击图表:请求 React 层弹窗选操作类型(price 为点击处价格) */
+  onRequestCreateAction?: (price: number) => void
+  /** 文本标注激活模式点击图表:请求 React 层弹窗输入文本(pt 为点击处锚点,submit 确认后创建标注) */
+  onRequestCreateText?: (pt: Point, submit: (text: string, price: number) => void) => void
+  /** 画线模式激活时右键「取消画线」:请求 React 层复位各画线模式开关 */
+  onRequestCancelDrawing?: () => void
   /** 画线数据变更(放置/拖拽/删除/编辑后触发,供上层持久化) */
   onChange?: () => void
 }
@@ -58,11 +80,17 @@ export class DrawingTools {
   private _options: DrawingToolsOptions
   private _cleanups: Array<() => void> = []
 
-  /** 各类型工具;优先级即数组顺序(line -> fib -> price-line) */
+  /** 各类型工具;优先级即数组顺序(line -> rect -> measure -> fib -> fib-ext -> price-line -> vertical-line -> text -> action-line) */
   private _tools: DrawingTool[]
   private _lineTool: LineTool
+  private _rectTool: RectTool
+  private _measureTool: MeasureTool
   private _fibTool: FibTool
+  private _fibExtTool: FibExtTool
   private _priceTool: PriceLineTool
+  private _verticalTool: VerticalLineTool
+  private _textTool: TextTool
+  private _actionTool: ActionPriceLineTool
 
   /** 右键框选起点(容器内坐标);非 null 表示框选进行中 */
   private _rangeStart: { x: number; y: number } | null = null
@@ -91,9 +119,38 @@ export class DrawingTools {
     this._options = options
 
     this._lineTool = new LineTool(chart, series, container, options.getBarCount)
+    this._rectTool = new RectTool(chart, series, container, options.getBarCount)
+    this._measureTool = new MeasureTool(chart, series, container, options.getBarCount)
     this._fibTool = new FibTool(chart, series, container, options.getBarCount)
+    this._fibExtTool = new FibExtTool(chart, series, container, options.getBarCount)
     this._priceTool = new PriceLineTool(chart, series, container, options.getBarCount)
-    this._tools = [this._lineTool, this._fibTool, this._priceTool]
+    this._verticalTool = new VerticalLineTool(chart, series, container, options.getBarCount)
+    this._textTool = new TextTool(
+      chart,
+      series,
+      container,
+      options.getBarCount,
+      options.onRequestCreateText ?? (() => {}),
+    )
+    this._actionTool = new ActionPriceLineTool(
+      chart,
+      series,
+      container,
+      options.getBarCount,
+      options.getBars,
+      options.onRequestCreateAction ?? (() => {}),
+    )
+    this._tools = [
+      this._lineTool,
+      this._rectTool,
+      this._measureTool,
+      this._fibTool,
+      this._fibExtTool,
+      this._priceTool,
+      this._verticalTool,
+      this._textTool,
+      this._actionTool,
+    ]
     for (const tool of this._tools) tool.onChange = options.onChange
 
     this._subscribe()
@@ -113,10 +170,61 @@ export class DrawingTools {
     this._lineTool.setEnabled(type)
   }
 
+  setRectEnabled(v: boolean): void {
+    this._rectTool.setEnabled(v)
+  }
+
+  setMeasureEnabled(v: boolean): void {
+    this._measureTool.setEnabled(v)
+  }
+
+  setFibExtEnabled(v: boolean): void {
+    this._fibExtTool.setEnabled(v)
+  }
+
+  setVerticalEnabled(v: boolean): void {
+    this._verticalTool.setEnabled(v)
+  }
+
+  setTextEnabled(v: boolean): void {
+    this._textTool.setEnabled(v)
+  }
+
+  setActionEnabled(v: boolean): void {
+    this._actionTool.setEnabled(v)
+  }
+
+  /** 用户创建操作价格线(React 弹窗确认后调用) */
+  createAction(price: number, action: ActionType): void {
+    this._actionTool.addAction(price, action)
+  }
+
+  /** 触发检测:数据更新后重评所有 armed 操作线(换股/恢复/加载更多后调用) */
+  checkTriggers(bars: KlineBar[]): void {
+    this._actionTool.checkTriggers(bars)
+  }
+
+  /** 用户确认执行(交互):仅 user 对象可由用户改状态 */
+  confirmAction(id: number, executed: boolean): void {
+    const ref = { kind: 'action-line' as const, id }
+    if (!this._actionTool.canUserModify(ref)) return
+    this._actionTool.setStatus(id, executed ? 'executed' : 'violated')
+  }
+
+  /** 查询操作线状态(菜单判断能否改价) */
+  getActionStatus(ref: import('./types').DrawingRef): import('./types').ActionStatus | null {
+    return this._actionTool.getActionStatus(ref)
+  }
+
   // ---- 画线操作(统一按 kind 路由) ----
 
-  /** 清除所有画线对象 */
+  /** 用户「清除」:清除所有用户画线对象(保留 system 对象,归系统程序管理) */
   clearAll(): void {
+    for (const tool of this._tools) tool.clearUser()
+  }
+
+  /** 系统清除全部画线对象(含用户与系统;换股重置/系统维护用) */
+  systemClearAll(): void {
     for (const tool of this._tools) tool.clear()
   }
 
@@ -129,24 +237,44 @@ export class DrawingTools {
     return null
   }
 
+  // ---- 用户操作入口(受 source 权限限制:仅可操作 user 对象) ----
+
+  /** 用户删除:仅可删 user 对象(system 归系统程序管) */
   deleteDrawing(ref: import('./types').DrawingRef): void {
-    this._toolOf(ref.kind)?.delete(ref)
-  }
-
-  setReadonly(ref: import('./types').DrawingRef, v: boolean): void {
-    this._toolOf(ref.kind)?.setReadonly(ref, v)
-  }
-
-  isReadonly(ref: import('./types').DrawingRef): boolean {
-    return this._toolOf(ref.kind)?.isReadonly(ref) ?? false
+    const tool = this._toolOf(ref.kind)
+    if (!tool || !tool.canUserModify(ref)) return
+    tool.delete(ref)
   }
 
   getControlPointPrice(ref: import('./types').DrawingRef): number | null {
     return this._toolOf(ref.kind)?.getControlPointPrice(ref) ?? null
   }
 
+  /** 用户改控制点价格:仅可改 user 对象 */
   setControlPointPrice(ref: import('./types').DrawingRef, price: number): void {
+    const tool = this._toolOf(ref.kind)
+    if (!tool || !tool.canUserModify(ref)) return
+    tool.setControlPointPrice(ref, price)
+  }
+
+  /** 查询对象归属(system=系统程序创建,用户不可修改/删除) */
+  getSource(ref: import('./types').DrawingRef): import('./types').DrawingSource | null {
+    return this._toolOf(ref.kind)?.getSource(ref) ?? null
+  }
+
+  // ---- 系统操作入口(不受权限限制,供系统程序/未来系统模块调用) ----
+
+  systemDelete(ref: import('./types').DrawingRef): void {
+    this._toolOf(ref.kind)?.delete(ref)
+  }
+
+  systemSetControlPointPrice(ref: import('./types').DrawingRef, price: number): void {
     this._toolOf(ref.kind)?.setControlPointPrice(ref, price)
+  }
+
+  /** 系统创建画线对象(source='system',用户不可修改/删除) */
+  systemCreate(item: SerializedDrawing): void {
+    this._toolOf(item.kind)?.systemAdd(item)
   }
 
   // ---- 统一数据接口:存储与回写 ----
@@ -156,9 +284,9 @@ export class DrawingTools {
     return this._tools.flatMap((tool) => tool.serialize())
   }
 
-  /** 从统一存储格式回写重建全部画线对象(先清空再按 kind 分发) */
+  /** 从统一存储格式回写重建全部画线对象(先系统级清空全部,再按 kind 分发) */
   restoreAll(items: SerializedDrawing[]): void {
-    this.clearAll()
+    for (const tool of this._tools) tool.clear()
     for (const tool of this._tools) {
       tool.restore(items.filter((s) => s.kind === tool.kind))
     }
@@ -235,8 +363,18 @@ export class DrawingTools {
 
   private _onPointerDown = (e: PointerEvent): void => {
     this._suppressContextMenu = false
-    // 右键:启动区间框选(框选统计周期)
+    // 右键:画线模式激活时用于「取消画线」(清理未完成锚点 + 复位模式开关),不启动框选;
+    // 否则启动区间框选(框选统计周期)
     if (e.button === 2) {
+      if (this._tools.some((t) => t.isEnabled())) {
+        this._cancelDrawing()
+        this._options.onRequestCancelDrawing?.()
+        // 取消画线不算框选,吞掉随后补发的 contextmenu(浏览器菜单由 inChart 条件同样拦截)
+        this._suppressContextMenu = true
+        e.preventDefault()
+        e.stopPropagation()
+        return
+      }
       const { x, y } = this._toLocal(e)
       this._rangeStart = { x, y }
       e.preventDefault()
@@ -249,7 +387,7 @@ export class DrawingTools {
     this._dragging = false
     this._downClient = { x: e.clientX, y: e.clientY }
     this._lastPointer = { x, y }
-    // 记录按下的控制点(无论是否 readonly),供 pointerup 判定左键菜单
+    // 记录按下的控制点,供 pointerup 判定左键菜单
     this._anchorPress = this._hitControlPoint(x, y)
 
     // 路由到工具:命中可拖拽对象时返回 true,阻止图表平移
@@ -307,9 +445,10 @@ export class DrawingTools {
       return
     }
     if (this._moved) {
-      // 拖动结束:抑制后续一次 click,避免误放新画线
-      this._lineTool.suppressNextClick()
-      this._priceTool.suppressNextClick()
+      // 拖动结束:抑制后续一次 click,避免误放新画线。
+      // 覆盖全部点击放置型工具(含 fib/rect/measure/fib-ext/vertical/text);
+      // 副作用:未激活工具的抑制标志会留到下次启用时消耗一次 click,但每工具至多一次,可接受。
+      for (const tool of this._tools) tool.suppressNextClick()
     }
     // 左键点击控制点(未拖拽) -> 弹出菜单;即使画线工具激活也弹,便于随时调整/删除
     if (this._anchorPress && !this._moved && this._lastPointer) {
@@ -339,6 +478,15 @@ export class DrawingTools {
   /** 打开控制点菜单(委托给 React 层) */
   private _openMenu(ref: import('./types').DrawingRef, x: number, y: number): void {
     this._options.onRequestMenu?.(ref, x, y)
+  }
+
+  /** 取消进行中的画线(未完成锚点/预览);模式开关复位由 React 层经 onRequestCancelDrawing 完成 */
+  private _cancelDrawing(): void {
+    this._lineTool.cancelPending()
+    this._rectTool.cancelPending()
+    this._measureTool.cancelPending()
+    this._fibTool.cancelPending()
+    this._fibExtTool.cancelPending()
   }
 
   /** 计算框选 x 区间内的统计(时间吸附到最近 K 线) */

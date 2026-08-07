@@ -15,55 +15,57 @@ function fmtVolume(v: number): string {
 /** 右键框选的区间统计弹窗 */
 export function RangeStatsDialog({ stats }: RangeStatsDialogProps) {
   const up = stats.change >= 0
-  const trendClass = up ? 'up' : 'down'
+  const trendClass = up ? 'text-up' : 'text-down'
+  const row = 'flex justify-between'
+  const key = 'text-muted'
   return (
-    <div className="range-stats">
-      <div className="range-stats-row">
-        <span>区间</span>
+    <div className="flex min-w-[230px] flex-col gap-2 text-sm tabular-nums">
+      <div className={row}>
+        <span className={key}>区间</span>
         <span>
           {stats.from} ~ {stats.to}
         </span>
       </div>
-      <div className="range-stats-row">
-        <span>交易日数</span>
+      <div className={row}>
+        <span className={key}>交易日数</span>
         <span>{stats.bars}</span>
       </div>
-      <div className="range-stats-row">
-        <span>开盘</span>
+      <div className={row}>
+        <span className={key}>开盘</span>
         <span>{fmt(stats.open)}</span>
       </div>
-      <div className="range-stats-row up">
-        <span>最高</span>
+      <div className={`${row} ${trendClass}`}>
+        <span className={key}>最高</span>
         <span>{fmt(stats.high)}</span>
       </div>
-      <div className="range-stats-row down">
-        <span>最低</span>
+      <div className={`${row} ${trendClass}`}>
+        <span className={key}>最低</span>
         <span>{fmt(stats.low)}</span>
       </div>
-      <div className="range-stats-row">
-        <span>收盘</span>
+      <div className={row}>
+        <span className={key}>收盘</span>
         <span>{fmt(stats.close)}</span>
       </div>
-      <div className={`range-stats-row ${trendClass}`}>
-        <span>涨跌</span>
+      <div className={`${row} ${trendClass}`}>
+        <span className={key}>涨跌</span>
         <span>
           {sign(stats.change)}
           {fmt(stats.change)}
         </span>
       </div>
-      <div className={`range-stats-row ${trendClass}`}>
-        <span>涨跌幅</span>
+      <div className={`${row} ${trendClass}`}>
+        <span className={key}>涨跌幅</span>
         <span>
           {sign(stats.changePct)}
           {fmt(stats.changePct)}%
         </span>
       </div>
-      <div className="range-stats-row">
-        <span>振幅</span>
+      <div className={row}>
+        <span className={key}>振幅</span>
         <span>{fmt(stats.amplitudePct)}%</span>
       </div>
-      <div className="range-stats-row">
-        <span>成交量</span>
+      <div className={row}>
+        <span className={key}>成交量</span>
         <span>{fmtVolume(stats.volume)}</span>
       </div>
     </div>
