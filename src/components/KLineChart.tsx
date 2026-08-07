@@ -9,6 +9,7 @@ import {
   type ISeriesApi,
 } from 'lightweight-charts'
 import { DrawingTools, type DrawingRef, type RangeStats } from '../drawing/DrawingTools'
+import { loadDrawings, saveDrawings } from '../drawing/persistence'
 import type { LineType } from '../drawing/LinePrimitive'
 import { DrawingContextMenu } from './DrawingContextMenu'
 import { RangeStatsDialog } from './RangeStatsDialog'
@@ -51,6 +52,8 @@ interface KLineChartProps {
   backSignal?: number
   /** 当前激活的画线工具(线段/射线/直线),null 表示未激活 */
   lineTool?: LineType | null
+  /** 画线数据持久化 key(如 `${code}:${period}`);提供则换股/换周期时存取绘图,缺省不持久化 */
+  storageKey?: string
 }
 
 /** 图表壳:只负责创建/销毁图表、数据更新与模式开关接线,绘制交互逻辑在 DrawingTools */
@@ -65,6 +68,7 @@ export function KLineChart({
   onLatestVisibleChange,
   backSignal,
   lineTool,
+  storageKey,
 }: KLineChartProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
@@ -98,6 +102,11 @@ export function KLineChart({
 
   const barsRef = useRef<KlineBar[]>(bars)
   barsRef.current = bars
+  /** 当前持久化 key(实时同步 prop,供 onChange 保存使用) */
+  const storageKeyRef = useRef<string | undefined>(storageKey)
+  storageKeyRef.current = storageKey
+  /** 画线持久化跟踪:最近一次应用的 storageKey + 工具实例(换股/换周期时存取) */
+  const persistRef = useRef<{ key: string | null; tools: DrawingTools | null }>({ key: null, tools: null })
   const onLoadMoreRef = useRef(onLoadMoreHistory)
   onLoadMoreRef.current = onLoadMoreHistory
   const onLatestVisibleRef = useRef(onLatestVisibleChange)
@@ -166,6 +175,12 @@ export function KLineChart({
       // 右键框选:拖动实时更新选区矩形;松开弹出区间统计
       onRangePreview: (rect) => setRangePreview(rect),
       onRangeSelect: (stats) => openRangeStats(stats),
+      // 画线数据变更 -> 实时保存到当前 storageKey(若已接入持久化)
+      onChange: () => {
+        const key = storageKeyRef.current
+        const tools = toolsRef.current
+        if (key && tools) saveDrawings(key, tools.serializeAll())
+      },
     })
     tools.setDrawingEnabled(drawingEnabled)
     tools.setFibEnabled(fibonacciEnabled)
@@ -262,8 +277,24 @@ export function KLineChart({
     // 指标重算(MA/RSI)
     indicators.update(bars)
 
-    // 换股后旧绘图的时间锚点在新数据中可能不存在,清空以保持干净
-    tools.clearAll()
+    // 画线持久化:
+    // - 未接入 storageKey:保持原有行为,换股后清空绘图
+    // - 接入 storageKey:仅当 key(股票/周期)或工具实例变化时,先保存旧 key 绘图,
+    //   再清空,最后回写新 key 绘图;load-more 追加历史(bars 变、key 不变)不清绘图
+    if (storageKey === undefined) {
+      tools.clearAll()
+    } else {
+      const prev = persistRef.current
+      if (prev.key !== storageKey || prev.tools !== tools) {
+        if (prev.key && prev.tools && prev.key !== storageKey) {
+          saveDrawings(prev.key, prev.tools.serializeAll())
+        }
+        tools.clearAll()
+        const saved = loadDrawings(storageKey)
+        if (saved.length > 0) tools.restoreAll(saved)
+        persistRef.current = { key: storageKey, tools }
+      }
+    }
 
     // 价格轴固定(autoScale 关闭)以支持垂直拖动;换股后手动适配新数据价格区间
     const range = fitPriceRange(bars)
@@ -272,7 +303,7 @@ export function KLineChart({
     // 时间视图:右滑追加历史时保持原窗口(平移 prepend 数),否则默认视图(最后 1/4 + 右侧预留 1/4)
     const view = historyLoaderRef.current?.resolveRange(bars.length) ?? defaultViewRange(bars.length)
     chart.timeScale().setVisibleLogicalRange(view)
-  }, [bars])
+  }, [bars, storageKey])
 
   // 指标配置变化 -> 同步到控制器(增删 series、切换显示)
   useEffect(() => {
@@ -294,6 +325,8 @@ export function KLineChart({
   useEffect(() => {
     if (clearSignal === 0) return
     toolsRef.current?.clearAll()
+    // 同步清除持久化的绘图,避免刷新后又回写
+    if (persistRef.current.key) saveDrawings(persistRef.current.key, [])
   }, [clearSignal])
 
   return (
