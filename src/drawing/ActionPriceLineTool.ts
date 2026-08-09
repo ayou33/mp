@@ -2,6 +2,8 @@ import type { IChartApi, ISeriesApi } from 'lightweight-charts'
 import { DrawingTool, HIT_THRESHOLD, type LocalPoint, type Point } from './DrawingTool'
 import {
   ActionPriceLinePrimitive,
+  axisLabelBox,
+  CONFIRM_BTN,
   type ActionDataSource,
   type ActionLineItem,
 } from './ActionPriceLinePrimitive'
@@ -84,33 +86,38 @@ export class ActionPriceLineTool extends DrawingTool {
     this.notifyChange()
   }
 
-  /** 触发检测:自 createdAt 起扫描(缺失退化最新 bar),命中 armed → triggered */
+  /** 触发检测:最新数据时间 > 创建时间(行情已更新)为门槛,通过后自 createdAt 含起扫描(同一根 bar 也能触发);无 createdAt 退化只看最新 bar */
   checkTriggers(bars: KlineBar[]): void {
     if (bars.length === 0) return
     let changed = false
+    const latest = bars[bars.length - 1]
     for (const item of this._data.items) {
       if (item.status !== 'armed') continue
       let hit = false
       if (item.createdAt) {
-        const start = bars.findIndex((b) => b.time === item.createdAt)
-        if (start >= 0) {
-          for (let i = start; i < bars.length; i++) {
-            if (item.direction === 'up' && bars[i].high >= item.price) {
-              hit = true
-              break
+        // 触发门槛:必须出现创建时间之后的数据——行情确实更新(未更新时刷新/恢复不误触发刚创建的对象);
+        // 门槛通过后自 createdAt 起扫描,含创建所在的那根 bar(同一日的 K 线也能触发)
+        if (latest.time > item.createdAt) {
+          const start = bars.findIndex((b) => b.time === item.createdAt)
+          if (start >= 0) {
+            for (let i = start; i < bars.length; i++) {
+              if (item.direction === 'up' && bars[i].high >= item.price) {
+                hit = true
+                break
+              }
+              if (item.direction === 'down' && bars[i].low <= item.price) {
+                hit = true
+                break
+              }
             }
-            if (item.direction === 'down' && bars[i].low <= item.price) {
-              hit = true
-              break
-            }
+          } else {
+            // createdAt 不在已加载区间:退化只看最新 bar
+            hit = item.direction === 'up' ? latest.high >= item.price : latest.low <= item.price
           }
-        } else {
-          const last = bars[bars.length - 1]
-          hit = item.direction === 'up' ? last.high >= item.price : last.low <= item.price
         }
       } else {
-        const last = bars[bars.length - 1]
-        hit = item.direction === 'up' ? last.high >= item.price : last.low <= item.price
+        // 无 createdAt(旧数据):退化只看最新 bar
+        hit = item.direction === 'up' ? latest.high >= item.price : latest.low <= item.price
       }
       if (hit) {
         item.status = 'triggered'
@@ -180,6 +187,27 @@ export class ActionPriceLineTool extends DrawingTool {
     return null
   }
 
+  /** 画布确认条命中测试:返回命中的 { id, executed } 或 null(仅 triggered 且 user 对象);几何与 primitive 绘制一致 */
+  hitTestConfirm(x: number, y: number): { id: number; executed: boolean } | null {
+    const c = CONFIRM_BTN
+    const paneW = this.chart.timeScale().width()
+    for (const item of this._data.items) {
+      if (item.status !== 'triggered' || item.source === 'system') continue
+      const cy = this.series.priceToCoordinate(item.price)
+      if (cy === null) continue
+      // 与绘制一致:用库轴 label 盒定位(axisLabelBox,含舍入),而非精确居中——保证命中区域=绘制区域
+      const vrp = window.devicePixelRatio || 1
+      const box = axisLabelBox(cy, c.height, vrp)
+      if (y < box.top / vrp || y > (box.top + box.height) / vrp) continue
+      const rightEdge = paneW - c.right
+      const notX = rightEdge - c.widthBtn
+      const yesX = notX - c.widthBtn
+      if (x >= yesX && x <= yesX + c.widthBtn) return { id: item.id, executed: true }
+      if (x >= notX && x <= notX + c.widthBtn) return { id: item.id, executed: false }
+    }
+    return null
+  }
+
   setHover(ref: DrawingRef | null): void {
     const id = ref?.kind === 'action-line' ? ref.id : null
     if (id === this._hoverId) return
@@ -201,6 +229,11 @@ export class ActionPriceLineTool extends DrawingTool {
   }
 
   onPointerDown(_e: PointerEvent, local: LocalPoint): boolean {
+    // 画布确认按钮命中:消费按下(阻止图表平移),pointerup 由 DrawingTools 命中测试确认
+    if (this.hitTestConfirm(local.x, local.y)) {
+      this._pressHit = true
+      return true
+    }
     for (const item of this._data.items) {
       const cy = this.series.priceToCoordinate(item.price)
       if (cy !== null && Math.abs(cy - local.y) <= HIT_THRESHOLD) {

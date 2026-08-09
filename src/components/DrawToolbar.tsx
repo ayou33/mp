@@ -10,6 +10,8 @@ import PolylineIcon from '@iconify-react/material-symbols/polyline'
 import RectangleIcon from '@iconify-react/material-symbols/rectangle'
 import SquareFootIcon from '@iconify-react/material-symbols/square-foot'
 import StraightenIcon from '@iconify-react/material-symbols/straighten'
+import TrendingDownIcon from '@iconify-react/material-symbols/trending-down'
+import TrendingUpIcon from '@iconify-react/material-symbols/trending-up'
 import VerticalAlignCenterIcon from '@iconify-react/material-symbols/vertical-align-center'
 import type { LineType } from '../drawing/LinePrimitive'
 
@@ -40,6 +42,10 @@ interface DrawToolbarProps {
   onToggleVertical: () => void
   onToggleText: () => void
   onClear: () => void
+  /** 测试:模拟行情向上跳动(追加大涨 K 线,触发操作价格线) */
+  onSimulateUp: () => void
+  /** 测试:模拟行情向下跳动(追加大跌 K 线,触发操作价格线) */
+  onSimulateDown: () => void
 }
 
 /** 左侧竖向画线工具栏 */
@@ -63,6 +69,8 @@ export function DrawToolbar({
   onToggleVertical,
   onToggleText,
   onClear,
+  onSimulateUp,
+  onSimulateDown,
 }: DrawToolbarProps) {
   const lineBtns: Array<{ type: LineType; icon: ReactNode; title: string }> = [
     { type: 'straight', icon: <LinearScaleIcon width="20" height="20" />, title: '趋势线:两点直线' },
@@ -145,6 +153,24 @@ export function DrawToolbar({
       <button className={baseBtn} onClick={onClear} title="清除全部画线">
         <DeleteIcon width="20" height="20" />
       </button>
+      {/* 测试:模拟行情跳动,驱动操作价格线触发检测 */}
+      <div className="mt-1 flex flex-col items-center gap-2 border-t border-border pt-2">
+        <span className="text-[10px] leading-none text-muted">模拟</span>
+        <button
+          className={baseBtn}
+          onClick={onSimulateUp}
+          title="测试:模拟行情向上跳动(追加大涨 K 线,触发操作价格线)"
+        >
+          <TrendingUpIcon width="20" height="20" />
+        </button>
+        <button
+          className={baseBtn}
+          onClick={onSimulateDown}
+          title="测试:模拟行情向下跳动(追加大跌 K 线,触发操作价格线)"
+        >
+          <TrendingDownIcon width="20" height="20" />
+        </button>
+      </div>
     </div>
   )
 }

@@ -56,21 +56,6 @@
   padding-left: 14px;
 }
 
-/* 操作线确认浮层:面板外观/定位由 .modal-dialog-float 提供,这里覆盖为横排紧凑按钮条 */
-.action-confirm {
-  transform: translate(-50%, -100%);
-  min-width: 0;
-  pointer-events: auto;
-  white-space: nowrap;
-}
-
-.action-confirm .modal-body {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-}
-
 /* ---- 弹窗系统 ---- */
 @keyframes modal-slide-right {
   from {

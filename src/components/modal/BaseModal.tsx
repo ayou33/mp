@@ -67,7 +67,7 @@ export function BaseModal({
           )}
         </div>
       )}
-      {/* modal-body 类保留作 .drawing-menu .modal-body / .action-confirm .modal-body 等 float 覆盖的 CSS 钩子 */}
+      {/* modal-body 类保留作 .drawing-menu .modal-body 等 float 覆盖的 CSS 钩子 */}
       <div className="modal-body flex-1 overflow-y-auto px-5 pb-5 pt-2 text-sm">{children}</div>
     </div>
   )

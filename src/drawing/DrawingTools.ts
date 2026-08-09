@@ -450,9 +450,15 @@ export class DrawingTools {
       // 副作用:未激活工具的抑制标志会留到下次启用时消耗一次 click,但每工具至多一次,可接受。
       for (const tool of this._tools) tool.suppressNextClick()
     }
-    // 左键点击控制点(未拖拽) -> 弹出菜单;即使画线工具激活也弹,便于随时调整/删除
-    if (this._anchorPress && !this._moved && this._lastPointer) {
-      this._openMenu(this._anchorPress, this._lastPointer.x, this._lastPointer.y)
+    // 左键点击(未拖拽):操作线画布确认按钮命中 → 确认执行(不弹菜单,按钮可在控制点命中阈值之外);
+    // 否则命中控制点 → 弹左键菜单
+    if (!this._moved && this._lastPointer) {
+      const confirm = this._actionTool.hitTestConfirm(this._lastPointer.x, this._lastPointer.y)
+      if (confirm) {
+        this.confirmAction(confirm.id, confirm.executed)
+      } else if (this._anchorPress) {
+        this._openMenu(this._anchorPress, this._lastPointer.x, this._lastPointer.y)
+      }
     }
     this._anchorPress = null
     this._dragging = false

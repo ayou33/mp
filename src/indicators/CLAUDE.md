@@ -80,7 +80,7 @@ lightweight-charts v5 各 pane 默认拉伸系数(stretch factor)均为 1,即主
 ## 文件要点
 
 - `IndicatorController.ts` — 指标总控制器(非 React):`IndicatorConfig` 开关/参数/`lineStyles`、`IndicatorId`、主图默认线色常量、`ChartLegend` 图例(ohlcv/indicators 双路)、主图 MA/EMA/BBI/BOLL 装配(`_lineStyle`/`_applyMainStyle` 应用样式覆盖,轴标签按可见顺序经 `_axisItemBySeries` 重建)、副图按激活顺序 `_subOrder` + 参数/样式签名重建(`_subParams`)、十字光标图例。主图轴标签状态 `_mainAxisState` 就地更新。
-- `IndicatorAxis.ts` — 两个自绘 primitive:`IndicatorAxisPrimitive`(主图价格轴指标值标签,多值按 y 排序、`resolveNonOverlap` 防重叠、左贴边方标签)与 `PaneLabelPrimitive`(副图左上角角标,分段着色)。共享 `IndicatorAxisState`/`PaneLabelState`。
+- `IndicatorAxis.ts` — 两个自绘 primitive:`IndicatorAxisPrimitive`(主图价格轴指标值标签,多值按 y 排序、`resolveNonOverlap` 防重叠、方标签盒左缘 x=0、文本起始 10 与库绘轴 label 左对齐)与 `PaneLabelPrimitive`(副图左上角角标,分段着色)。共享 `IndicatorAxisState`/`PaneLabelState`。
 - `SubChartIndicator.ts` — 单个副图指标实例:组件 series(独立 pane)、价格轴同色标签、左上角标、十字光标/最新值。定义 `IndicatorLineStyle`/`SubChartParams`/`mergeLineStyle`;构造接收 params + 每线样式覆盖,series 选项与轴标签/角标色用解析后有效色。被控制器按开关创建/销毁。
 - `subCharts.ts` — 副图指标定义(`RSI_DEF`/`MACD_DEF`/`KDJ_DEF`/`WR_DEF`/`CCI_DEF`/`OBV_DEF`/`ATR_DEF`/`DMI_DEF`),`calc(bars, params)` 读参数缺省用默认周期,只声明组件集合与 calc,不含渲染逻辑。新副图指标在此扩展。
 - `editorMeta.ts` — 编辑面板元数据:`INDICATOR_META`(各指标可编辑参数 + 输出线描述;MA/EMA/WR 用 `inlineLines: true` 让「周期 + 该线样式(颜色/线宽/线型)」同行编辑、线随周期动态;BBI 的 array 参数与输出线非一一对应,编号行(`M1/M2...`,左对齐)不内嵌样式,单条 BBI 线样式在下方单独编辑),默认线色取自 `IndicatorController`/`subCharts.ts` 常量。

@@ -80,7 +80,8 @@ class IndicatorAxisPaneRenderer implements IPrimitivePaneRenderer {
   private _series: ISeriesApi<SeriesType>
   private _state: IndicatorAxisState
   private _fontSize = 11
-  private _padX = 8
+  /** 文本距盒左缘间距:10 = 库轴 label 的 tickSize(5)+paddingInner(5),保证文本与库绘 label 左对齐 */
+  private _padX = 10
 
   constructor(series: ISeriesApi<SeriesType>, state: IndicatorAxisState) {
     this._series = series
@@ -111,14 +112,14 @@ class IndicatorAxisPaneRenderer implements IPrimitivePaneRenderer {
         l.y = ys[i]
       })
 
-      // 绘制方形标签(无圆角),样式与最新价格标签一致;左侧靠边,右侧留空
+      // 绘制方形标签(无圆角),样式与最新价格标签一致;盒左缘 0、文本起始 10,与库绘轴 label 左对齐
       const labelH = LABEL_HEIGHT * vrp
       const padX = this._padX * hrp
       ctx.textBaseline = 'middle'
       for (const { item, text, y } of labels) {
         const textW = ctx.measureText(text).width
         const labelW = textW + 2 * padX
-        const x = 2 * hrp // 左侧靠边(贴近图表面)
+        const x = 0 // 盒左缘与库轴 label 一致(库含 tick 区)
         const top = y * vrp - labelH / 2
         ctx.fillStyle = item.color
         ctx.fillRect(x, top, labelW, labelH)

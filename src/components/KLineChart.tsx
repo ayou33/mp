@@ -8,17 +8,17 @@ import {
   type IChartApi,
   type ISeriesApi,
 } from 'lightweight-charts'
-import { DrawingTools, type ActionType, type DrawingRef, type RangeStats } from '../drawing/DrawingTools'
+import { DrawingTools, type DrawingRef, type RangeStats } from '../drawing/DrawingTools'
 import { loadDrawings, saveDrawings } from '../drawing/persistence'
 import type { LineType } from '../drawing/LinePrimitive'
 import { DrawingContextMenu } from './DrawingContextMenu'
 import { RangeStatsDialog } from './RangeStatsDialog'
 import { ActionTypeDialog } from './ActionTypeDialog'
 import { TextInputDialog } from './TextInputDialog'
-import { ActionConfirmOverlay } from './ActionConfirmOverlay'
 import { useModal } from './modal/ModalProvider'
 import { HistoryLoader, defaultViewRange } from '../chart/HistoryLoader'
 import { buildCandleData, fitPriceRange } from '../chart/candleData'
+import { LastPriceLabelPrimitive } from '../chart/LastPriceLabel'
 import { VisibleRangeMark, type HighLowMarkStyle } from '../chart/VisibleRangeMark'
 import { CrosshairGainLabel } from '../chart/CrosshairGainLabel'
 import {
@@ -119,36 +119,6 @@ export function KLineChart({
   } | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
-  // 操作价格线执行确认浮层:triggered 且 user 的对象,显示「已执行/未执行」按钮
-  const [confirmActions, setConfirmActions] = useState<Array<{ id: number; action: ActionType; x: number; y: number }>>([])
-  const refreshConfirmActions = useCallback(() => {
-    const tools = toolsRef.current
-    const series = candleRef.current
-    const container = containerRef.current
-    if (!tools || !series || !container) return
-    const items = tools
-      .serializeAll()
-      .filter(
-        (s) =>
-          s.kind === 'action-line' &&
-          s.status === 'triggered' &&
-          s.source !== 'system' &&
-          typeof s.price === 'number' &&
-          s.action,
-      )
-      .map((s) => {
-        const y = series.priceToCoordinate(s.price as number)
-        return { id: s.id, action: s.action as ActionType, x: container.clientWidth / 2, y: y ?? -9999 }
-      })
-      .filter((a) => a.y !== -9999)
-    setConfirmActions((prev) =>
-      prev.length === items.length &&
-      prev.every((p, i) => p.id === items[i].id && p.y === items[i].y && p.action === items[i].action)
-        ? prev
-        : items,
-    )
-  }, [])
-
   // 右键框选:选区矩形覆盖层 + 松开弹出区间统计弹窗
   const { open: openModal } = useModal()
   const [rangePreview, setRangePreview] = useState<{ x: number; y: number; width: number; height: number } | null>(null)
@@ -212,10 +182,14 @@ export function KLineChart({
     })
 
     // K 线主图(红涨绿跌;真假阴阳由逐点颜色控制:真→空心、假→实心)
+    // lastValueVisible:false 隐藏库内置右对齐的最新价 label,由自绘 LastPriceLabelPrimitive 左对齐替代
     const candleSeries = chart.addSeries(CandlestickSeries, {
       upColor: UP_COLOR, downColor: DOWN_COLOR, borderVisible: true,
       borderUpColor: UP_COLOR, borderDownColor: DOWN_COLOR, wickUpColor: UP_COLOR, wickDownColor: DOWN_COLOR,
+      lastValueVisible: false,
     })
+    // 最新价轴 label:自绘、左对齐贴图表右缘,与指标值 label 同位置同样式
+    candleSeries.attachPrimitive(new LastPriceLabelPrimitive(candleSeries, UP_COLOR, DOWN_COLOR))
     // 主图价格轴固定以支持垂直拖动;副图(autoScale)不受影响
     // 默认渲染高度 = (整个可用高度 - 成交量最大高度) 的 4/5:
     //   成交量占底部 20%(top 0.8),K 线渲染区间 [0.16, 0.80] 高度 = 0.64 = 0.80 × 4/5,
@@ -288,12 +262,11 @@ export function KLineChart({
       onRangeSelect: (stats) => openRangeStats(stats),
       // 画线模式激活时右键「取消画线」:复位各画线模式开关(状态由 App 持有)
       onRequestCancelDrawing: () => onCancelDrawingRef.current?.(),
-      // 画线数据变更 -> 实时保存到当前 storageKey(若已接入持久化);刷新确认浮层
+      // 画线数据变更 -> 实时保存到当前 storageKey(若已接入持久化)
       onChange: () => {
         const key = storageKeyRef.current
         const tools = toolsRef.current
         if (key && tools) saveDrawings(key, tools.serializeAll())
-        refreshConfirmActions()
       },
     })
     tools.setDrawingEnabled(drawingEnabled)
@@ -431,9 +404,8 @@ export function KLineChart({
       }
     }
 
-    // 操作价格线:数据更新/恢复/换股/加载更多后重评触发,并刷新确认浮层
+    // 操作价格线:数据更新/恢复/换股/加载更多后重评触发
     tools.checkTriggers(bars)
-    refreshConfirmActions()
 
     // 时间视图:右滑追加历史时保持原窗口(平移 prepend 数),否则默认视图(最后 1/4 + 右侧预留 1/4)
     const view = historyLoaderRef.current?.resolveRange(bars.length) ?? defaultViewRange(bars.length)
@@ -473,18 +445,7 @@ export function KLineChart({
     // 用户「清除」:只清用户画线对象,保留 system 对象;清除后重新持久化剩余对象
     tools.clearAll()
     if (persistRef.current.key) saveDrawings(persistRef.current.key, tools.serializeAll())
-    refreshConfirmActions()
-  }, [clearSignal, refreshConfirmActions])
-
-  // 确认浮层:滚动/缩放时刷新位置
-  useEffect(() => {
-    if (confirmActions.length === 0) return
-    const chart = chartRef.current
-    if (!chart) return
-    const onRange = () => refreshConfirmActions()
-    chart.timeScale().subscribeVisibleLogicalRangeChange(onRange)
-    return () => chart.timeScale().unsubscribeVisibleLogicalRangeChange(onRange)
-  }, [confirmActions.length, refreshConfirmActions])
+  }, [clearSignal])
 
   return (
     <div className="relative h-full w-full">
@@ -500,15 +461,6 @@ export function KLineChart({
           }}
         />
       )}
-      {confirmActions.map((ca) => (
-        <ActionConfirmOverlay
-          key={ca.id}
-          action={ca.action}
-          x={ca.x}
-          y={ca.y}
-          onConfirm={(executed) => toolsRef.current?.confirmAction(ca.id, executed)}
-        />
-      ))}
       {menu && (
         <DrawingContextMenu
           ref={menuRef}

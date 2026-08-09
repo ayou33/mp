@@ -11,9 +11,9 @@ App.tsx 编排:股票/周期/设置/自选状态、9 种画线模式互斥、指
   │     ├─ StockSearch    股票搜索(回车触发,规范化在 src/api/stock.ts)
   │     └─ SettingsDialog 设置弹窗(UserSettings 持久化 mp_settings)
   ├─ IndicatorBar.tsx 指标栏:常显全部指标、激活蓝字+底部短bar、滚轮平滑横向滚动、+自定义指标
-  ├─ DrawToolbar.tsx 左侧画线工具栏(9 种工具互斥开关 + 清除)
+  ├─ DrawToolbar.tsx 左侧画线工具栏(9 种工具互斥开关 + 清除 + 底部「模拟」测试按钮)
   ├─ KLineChart.tsx 图表壳:createChart、数据更新、模式开关接线、非 React 控制器装配
-  │     ├─ 图表浮层:DrawingContextMenu(画线左键菜单)/ ActionConfirmOverlay(操作线确认)/ range-select-overlay
+  │     ├─ 图表浮层:DrawingContextMenu(画线左键菜单)/ range-select-overlay(操作线确认按钮为画布实现,见 drawing/CLAUDE.md)
   │     └─ 经 ModalProvider 打开的弹窗内容:RangeStatsDialog / ActionTypeDialog / TextInputDialog
   ├─ Sidebar.tsx 右侧自选/浏览(自选持久化 mp_watchlist)
   └─ modal/ 全局弹窗体系
@@ -29,7 +29,7 @@ App.tsx 编排:股票/周期/设置/自选状态、9 种画线模式互斥、指
 ### 1. 弹窗必须从 BaseModal 衍生,分两种形态(根 CLAUDE.md 规则 5)
 
 - **全屏弹窗(center/right)**:经 `ModalProvider.open({ title, content })`。`content` 是函数时可接收 `{ close }` 自行关闭(如「确定」按钮);它只是**面板内容**,外壳由 ModalStack 包 BaseModal。`ActionTypeDialog`/`TextInputDialog`/`RangeStatsDialog`/`IndicatorConfigDialog`/`SettingsDialog` 都是纯内容组件,**不自建面板外壳**。
-- **容器内浮层(float)**:直接 `<BaseModal placement="float" x={x} y={y}>`,坐标是**容器内 CSS px**。`DrawingContextMenu`、`ActionConfirmOverlay` 用这种。
+- **容器内浮层(float)**:直接 `<BaseModal placement="float" x={x} y={y}>`,坐标是**容器内 CSS px**。`DrawingContextMenu` 用这种(操作线确认按钮已是画布实现,无 React 浮层)。
 - 新增弹窗不得自建面板外壳样式,一律复用 BaseModal。
 
 ### 2. center/right 弹窗必须带 `relative z-10`,否则被自己的遮罩盖住
@@ -43,14 +43,14 @@ ModalStack 的结构是 `fixed inset-0 z-[1000+i]` 包裹「`absolute` 遮罩 + 
 ### 4. 样式统一 Tailwind utility + @theme token(根 CLAUDE.md 规则 6)
 
 - 所有 UI 样式用 Tailwind utility 写在 JSX,颜色用 `bg-panel`/`text-ink`/`text-muted`/`text-accent`/`text-up`/`text-down`/`bg-input`/`bg-yellow`/`bg-cyan`/`bg-purple` 等 token,**不写死 hex、不新增手写组件类**。
-- 极少数无法 utility 化的全局钩子放 `src/index.css`(如 `.drawing-menu .modal-body`、`.action-confirm .modal-body` 的 float 布局覆盖)。新增这类钩子要克制。
+- 极少数无法 utility 化的全局钩子放 `src/index.css`(如 `.drawing-menu .modal-body` 的 float 布局覆盖)。新增这类钩子要克制。
 - 隐藏滚动条但保持可滚:用 Tailwind 任意属性 `[scrollbar-width:none] [&::-webkit-scrollbar]:hidden`,不要为此写 CSS 类。
 
 ### 5. KLineChart 是图表壳,不是业务容器
 
 - 图表创建 effect 只跑一次:StrictMode 下会执行两次,须先 `container.replaceChildren()` 再 `createChart`,cleanup 里 `chart.remove()` + 移除监听 + `tools.dispose()` 等。
 - 模式开关在**渲染期**同步(`toolsRef.current?.setDrawingEnabled(drawingEnabled)` 等),不要在 effect 里做——渲染期保证每次 props 变化都推给控制器。
-- 画线/指标的交互逻辑都在 `src/drawing/`/`src/indicators/`,KLineChart 只负责创建、装配、把回调接线到 React 状态(菜单坐标、区间统计、确认浮层等)。
+- 画线/指标的交互逻辑都在 `src/drawing/`/`src/indicators/`,KLineChart 只负责创建、装配、把回调接线到 React 状态(菜单坐标、区间统计等)。
 
 ### 6. 可复用输入组件:`PriceInput`
 
@@ -58,7 +58,7 @@ ModalStack 的结构是 `fixed inset-0 z-[1000+i]` 包裹「`absolute` 遮罩 + 
 
 ### 7. 图表浮层坐标:容器内 CSS px + 钳制
 
-`DrawingContextMenu`/`ActionConfirmOverlay` 的 float 坐标相对 `.kline-chart` 容器:菜单坐标由 `onRequestMenu(ref, x, y)` 传入并在 KLineChart 里钳制到容器范围;操作线确认浮层 y 用 `series.priceToCoordinate(price)` 换算,超出容器用 `-9999` 隐藏。
+`DrawingContextMenu` 的 float 坐标相对 `.kline-chart` 容器:菜单坐标由 `onRequestMenu(ref, x, y)` 传入并在 KLineChart 里钳制到容器范围。(操作线确认按钮是画布实现,坐标由 primitive 渲染、命中由 drawing 层处理,不涉及 React 浮层。)
 
 ### 8. 图标:iconify material-symbols 常规字重
 
@@ -79,8 +79,8 @@ ModalStack 的结构是 `fixed inset-0 z-[1000+i]` 包裹「`absolute` 遮罩 + 
 - `topbar/PeriodSwitcher.tsx` — 日/周/月周期切换。
 - `topbar/SettingsButton.tsx` + `SettingsDialog.tsx` — 设置弹窗:`UserSettings`(默认周期/红涨绿跌/高低点标注样式),保存后由 App 持久化 `mp_settings`。
 - `IndicatorBar.tsx` — 指标栏:12 个指标元数据(单一数据源 `INDICATORS`,顶栏与添加弹窗共用)、常显全部、激活蓝字+底部短 bar、滚动区隐藏滚动条 + 滚轮平滑横向滚动、+自定义指标。
-- `DrawToolbar.tsx` — 左侧画线工具栏:9 种工具互斥开关 + 清除;`act(color)` 辅助生成激活态类。
-- `KLineChart.tsx` — 图表壳:createChart(StrictMode 兼容)、Candlestick/Volume series、`DrawingTools`/`IndicatorController`/`HistoryLoader`/`VisibleRangeMark`/`CrosshairGainLabel` 装配、模式开关渲染期同步、右键框选/区间统计/操作线/文本标注弹窗接线、画线持久化(storageKey)、图表浮层渲染。
+- `DrawToolbar.tsx` — 左侧画线工具栏:9 种工具互斥开关 + 清除 + 底部「模拟」区两个测试按钮(向上/向下跳动,`onSimulateUp`/`onSimulateDown` → App `simulateMove` 追加次日大涨/大跌 K 线驱动操作线触发);`act(color)` 辅助生成激活态类。
+- `KLineChart.tsx` — 图表壳:createChart(StrictMode 兼容)、Candlestick/Volume series、`DrawingTools`/`IndicatorController`/`HistoryLoader`/`VisibleRangeMark`/`CrosshairGainLabel` 装配、模式开关渲染期同步、右键框选/区间统计/操作线/文本标注弹窗接线、画线持久化(storageKey)、图表浮层渲染。操作线确认交互已下沉 drawing 层(画布按钮),无 React 确认浮层。
 - `Sidebar.tsx` — 右侧自选/浏览列表(自选可移除、浏览可加入),数据来自 `src/data/stocks.ts`。
 - `PriceInput.tsx` — 可复用价格输入:受控、滚轮 1/10/100 tick、精确 0.01、`w-full` 填父级;画线编辑/文本标注/操作线创建共用。
 - `modal/ModalProvider.tsx` — 全局弹窗系统:`open`/`close`(可指定 key)、多层堆叠(`z-index 1000+i`、下层半透明)、Esc/点遮罩关最上层;`content` 函数形式注入 `{ close }`。
@@ -89,6 +89,5 @@ ModalStack 的结构是 `fixed inset-0 z-[1000+i]` 包裹「`absolute` 遮罩 + 
 - `modal/IndicatorLineEditor.tsx` — 线样式控件:`LineStyleControls`(色板 + 线宽输入 clamp 1-4 + 实/虚/点线按钮组 + 内联预览)、`clampLineWidth`。
 - `modal/IndicatorPeriodEditor.tsx` — 周期行编辑:`PeriodLineRows`(M1/M2 编号 + 周期输入,可内嵌线样式 `withStyle`、移除/新增);`withStyle=false`(BBI)仅编号行。
 - `DrawingContextMenu.tsx` — 画线对象左键菜单(float):`PriceInput` 改价(`NO_PRICE_KINDS` 如垂直线隐藏价格行)+ 删除;`isSystem`/`canEdit` 控制禁用。
-- `ActionConfirmOverlay.tsx` — 操作价格线 triggered 确认浮层(float):显示操作类型 + 已执行/未执行。
 - `ActionTypeDialog.tsx` / `TextInputDialog.tsx` — 操作价格线/文本标注创建弹窗内容:`PriceInput` 编辑价格 + 确认(经 ModalProvider 外壳)。
 - `RangeStatsDialog.tsx` — 右键框选区间统计弹窗内容(区间/交易日数/OHLC/涨跌/涨跌幅/振幅/成交量,涨跌用 up/down 色)。

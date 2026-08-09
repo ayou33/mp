@@ -18,6 +18,18 @@ import type { KlineBar } from './types'
 const DEFAULT_CODE = 'sh000001' // 大盘:上证指数
 const DEFAULT_WATCHLIST = ['sh600519', 'sz000001', 'sz300750']
 
+/** 取 YYYY-MM-DD 的次日(测试模拟行情用;跨月/跨年正确,周末按连续交易日处理) */
+function nextDay(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const dt = new Date(y, m - 1, d + 1)
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
+}
+
+/** 价格保留两位小数(模拟行情 bar 用) */
+function round2(n: number): number {
+  return Math.round(n * 100) / 100
+}
+
 function loadWatchlist(): string[] {
   try {
     const raw = localStorage.getItem('mp_watchlist')
@@ -215,6 +227,22 @@ export default function App() {
     }
   }, [])
 
+  /** 测试:模拟行情向上/向下跳动——追加一根次日大幅上涨/下跌的 K 线,驱动触发检测触发操作价格线 */
+  const simulateMove = useCallback((dir: 'up' | 'down') => {
+    setBars((prev) => {
+      if (prev.length === 0) return prev
+      const last = prev[prev.length - 1]
+      // 新 bar 时间取最新 bar 次日,保证「最新数据时间 > 创建时间」的触发门槛通过
+      const time = nextDay(last.time)
+      const base = last.close
+      const bar: KlineBar =
+        dir === 'up'
+          ? { time, open: round2(base * 1.02), high: round2(base * 1.15), low: round2(base * 0.99), close: round2(base * 1.12), volume: Math.round(last.volume * 1.5) }
+          : { time, open: round2(base * 0.98), high: round2(base * 1.01), low: round2(base * 0.85), close: round2(base * 0.88), volume: Math.round(last.volume * 1.5) }
+      return [...prev, bar]
+    })
+  }, [])
+
   // 全局设置弹窗
   const { open } = useModal()
   const openSettings = useCallback(() => {
@@ -323,6 +351,8 @@ export default function App() {
             }
           }}
           onClear={() => setClearSignal((s) => s + 1)}
+          onSimulateUp={() => simulateMove('up')}
+          onSimulateDown={() => simulateMove('down')}
         />
 
         <div className="chart-wrap relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-t-lg bg-panel2">

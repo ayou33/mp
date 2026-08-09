@@ -60,10 +60,10 @@ React 组件每次渲染都会调 `setEnabled`,**不能无条件清空 pending**
 
 - **状态机**:`armed`(按操作类型配色)→ `triggered`(到达目标价,待确认)→ `executed`/`violated`(终态,仍可删除)。
 - **触发方向** `direction`:创建/拖拽改价时按「目标价 vs 最新收盘价」确定(目标在上 → `up`,用 `high >= price` 判定;在下 → `down`,用 `low <= price`),high/low 覆盖跳空。
-- **`createdAt`**(创建时最新 bar 时间)保证「未来第一次到达」跨刷新语义:`checkTriggers` 自 createdAt 起扫描,restore 后不误触已过去 bar;缺失退化只看最新 K 线。
+- **`createdAt`**(创建时最新 bar 时间)保证「未来第一次到达」跨刷新语义:`checkTriggers` 以 **最新数据时间 > createdAt** 为触发门槛(行情确实更新——未更新时刷新/恢复不误触刚创建的对象),门槛通过后 **自 createdAt 含起扫描**(同一根 K 线、即创建所在的那根 bar 也能触发);缺失退化只看最新 K 线。
 - **触发检测挂载点**:`KLineChart` 数据 `[bars, storageKey]` effect 中 `tools.checkTriggers(bars)`,覆盖恢复/换股/加载更多。
 - **呼吸动画**:工具在存在 `triggered` 时用 `setInterval`(33ms)调 `requestUpdate` 驱动 primitive 内 `performance.now()` 算 alpha。**定时器只调 requestUpdate,绝不碰 `_data`**,与「就地变更」坑(关键坑 1)不冲突。所有状态变化点调 `_syncBreathing()` 启停。
-- **确认交互**:triggered 对象由 React 确认浮层(`ActionConfirmOverlay`)在 `.kline-chart-wrap` 内定位(中心 x = 容器宽/2,y = `priceToCoordinate`),点「已执行/未执行」→ `DrawingTools.confirmAction`(校验 `canUserModify` 后 `setStatus`)。
+- **确认交互(全画布)**:triggered+user 对象由 primitive 画布绘制**确认条**——`[已执行(绿底 ✓icon)] [未执行(红底 ✕icon)]` 依次排列,**无间隔、无圆角、仅背景区分**,垂直中线与价格线重合,**右缘贴 pane 边缘紧贴价格轴的类型 label**(类型 label 仍由价格轴 `ActionAxisView` 显示,`visible()` 恒 true,只显示操作类型文字)。勾/叉为画布描边 icon 路径(非文字字形)。点击路由:`ActionPriceLineTool.onPointerDown` 先命中 `hitTestConfirm`(几何与绘制共用 `CONFIRM_BTN` 常量)并消费按下(设 `_pressHit` 阻止误开创建框、阻止图表平移),`DrawingTools._onPointerUp` 再命中测试确认 → `confirmAction`(校验 `canUserModify` 后 `setStatus`),不弹左键菜单。**确认条在价格线上下(条高区间内)均可点击**,不限于控制点命中阈值。确认后确认条消失,确认状态由线条样式区分(executed 白细线 / violated 红虚线+填充);**轴 label 为纯文本不渲染 icon 路径,故不带 ✓/✕**(确认条上的勾叉 icon 才是画布绘制)。确认条布局常量 `CONFIRM_BTN` 导出自 `ActionPriceLinePrimitive`,改几何时绘制与命中测试两侧需同步;**条高需与库 primitive 轴 label 绘制盒高一致**(默认 `layout.fontSize=12` 时轴 label 盒高 = 12 + 上下额外内边距 2.5+2 各乘比例 = 21px,故 `CONFIRM_BTN.height=21`;改图表 layout 字号需同步);**垂直定位用 `axisLabelBox()`**(镜像库 `PriceAxisViewRenderer` 的舍入:yMid 四舍五入 + 盒高奇偶对齐),绘制与 `hitTestConfirm` 两侧共用,保证与库绘轴 label 像素级对齐(否则精确居中会差 ~1px)。
 - **几何锁定**:非 armed 状态不可拖拽/改价(`onPointerDown` 仅 armed+user 启动 drag;`setControlPointPrice` 仅 armed 生效;菜单 `canEdit` 控制输入框)。
 
 ## 交互与约定
@@ -101,8 +101,8 @@ React 组件每次渲染都会调 `setEnabled`,**不能无条件清空 pending**
 - `TextTool.ts` — 单点文本:激活模式点击 → `onRequestCreateText(pt, submit)` 回调 React 弹窗输入文本与价格,确认后 `addLabel(pt, text, price)` 创建(价格用面板编辑值,缺省取点击处)。
 - `PriceLineTool.ts` — 价格线基于库自带 `createPriceLine`(非自绘),`_items` 存 `{ id, line, price }`,`setHover` 用 `applyOptions({ lineWidth })` 加粗,无 primitive。
 - `PriceLineTool.ts` — 价格线基于库自带 `createPriceLine`(非自绘),`_items` 存 `{ id, line, price }`,`setHover` 用 `applyOptions({ lineWidth })` 加粗,无 primitive。
-- `ActionPriceLineTool.ts` — 操作价格线工具:`addAction`/`setStatus`/`checkTriggers`(createdAt 起扫描 high/low)、拖拽(armed+user,结束重算方向)、呼吸定时器 `_syncBreathing`、`_pressHit` 防误开创建框、serialize/restore(含 action/status/direction/createdAt)。
-- `ActionPriceLinePrimitive.ts` — 自绘操作价格线 primitive:`ACTION_COLORS`(开红/加黄/减蓝/清绿)、armed 实线 / triggered 呼吸 / executed 白细线+绿勾 / violated 渐变填充(direction up 填充顶部、down 填充底部)、价格轴操作类型标签(`priceAxisViews` + `ISeriesPrimitiveAxisView`,按 `id:status` 签名重建)。
+- `ActionPriceLineTool.ts` — 操作价格线工具:`addAction`/`setStatus`/`checkTriggers`(最新时间 > createdAt 门槛后自 createdAt 含起扫描 high/low,同一根 bar 也能触发)、画布确认条命中测试 `hitTestConfirm`(几何与 primitive 共用 `CONFIRM_BTN`)、拖拽(armed+user,结束重算方向)、呼吸定时器 `_syncBreathing`、`_pressHit` 防误开创建框、serialize/restore(含 action/status/direction/createdAt)。
+- `ActionPriceLinePrimitive.ts` — 自绘操作价格线 primitive:`ACTION_COLORS`(开红/加黄/减蓝/清绿)、armed 实线 / triggered 呼吸 / executed 白细线 / violated 渐变填充(direction up 填充顶部、down 填充底部)、triggered+user 右侧画布**确认条**([已执行绿底✓icon] [未执行红底✕icon],无间隔无圆角仅背景区分,垂直中线与价格线重合,右缘贴 pane 边缘紧贴价格轴 label,布局常量 `CONFIRM_BTN`)、价格轴操作类型标签(`priceAxisViews` + `ISeriesPrimitiveAxisView`,按 `id:status` 签名重建,纯文本只显示操作类型,无 ✓/✕ 字形)。
 - `LinePrimitive.ts` — 自绘线段/射线/直线 primitive + `lineEndpoints()`(按 type 算延伸端点,射线/直线延伸到 pane 边界)。
 - `FibonacciPrimitive.ts` — 自绘斐波那契 primitive:`FIB_LEVELS` 回调水平线(0/0.236/0.382/0.5/0.618/0.786/1,虚线、0/1 实线)、锚点竖虚线、价格轴百分比标签(`priceAxisViews()` + `ISeriesPrimitiveAxisView`,按集合结构签名重建)。
 - `RectPrimitive.ts` — 矩形 primitive:半透明填充 + 描边 + 对角锚点圆点;`RECT_COLOR = '#00bcd4'`。
