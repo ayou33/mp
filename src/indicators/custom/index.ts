@@ -19,6 +19,7 @@ export {
   FormulaError,
   FORMULA_FIELDS,
   FORMULA_FUNCS,
+  type InlineLineStyle,
   type FormulaStatement,
 } from './formula'
 export {
@@ -77,6 +78,8 @@ export {
   abs,
   max,
   min,
+  refx,
+  barsCount,
   crossOver,
   crossUnder,
   hexToRgba,

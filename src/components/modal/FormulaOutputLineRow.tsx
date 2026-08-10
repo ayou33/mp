@@ -1,5 +1,4 @@
 import type { FormulaShape } from '../../indicators/custom'
-import { IndicatorLineEditor, type LineDraft } from './IndicatorLineEditor'
 import { INPUT_CLS, SCALE_OPTIONS, SHAPE_OPTIONS, SegmentedControl, TEXTAREA_CLS } from './formulaOutputShared'
 
 /**
@@ -14,8 +13,6 @@ export function FormulaOutputLineRow({
   onLower,
   base,
   onBase,
-  draft,
-  onDraft,
   label,
   onLabel,
   scale,
@@ -30,8 +27,6 @@ export function FormulaOutputLineRow({
   onLower: (v: string) => void
   base: string
   onBase: (v: string) => void
-  draft: LineDraft
-  onDraft: (d: LineDraft) => void
   label: string
   onLabel: (v: string) => void
   scale: 'right' | 'independent'
@@ -94,7 +89,6 @@ export function FormulaOutputLineRow({
           />
         </label>
       )}
-      <IndicatorLineEditor label="样式" draft={draft} onChange={onDraft} />
     </div>
   )
 }

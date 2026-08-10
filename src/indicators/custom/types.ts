@@ -207,6 +207,10 @@ export interface CalcContext {
   llv: (values: NumArr, period: number) => NumArr
   wilder: (values: NumArr, period: number) => NumArr
   ref: (values: NumArr, n: number) => NumArr
+  /** 未来引用:refx(v, n)[i] = v[i+n],末尾 n 根为 null */
+  refx: (values: NumArr, n: number) => NumArr
+  /** 有效值计数:barsCount(v)[i] = v[0..i] 中有效值个数 */
+  barsCount: (values: NumArr) => NumArr
   abs: (values: NumArr) => NumArr
   max: (a: NumArr | number, b: NumArr | number) => NumArr
   min: (a: NumArr | number, b: NumArr | number) => NumArr

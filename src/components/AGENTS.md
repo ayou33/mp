@@ -13,7 +13,7 @@ App.tsx 编排:股票/周期/设置/自选状态、9 种画线模式互斥、指
   ├─ IndicatorBar.tsx 指标栏:常显全部指标、激活蓝字+底部短bar、滚轮平滑横向滚动、+自定义指标
   ├─ DrawToolbar.tsx 左侧画线工具栏(9 种工具互斥开关 + 清除 + 底部「模拟」测试按钮)
   ├─ KLineChart.tsx 图表壳:createChart、数据更新、模式开关接线、非 React 控制器装配
-  │     ├─ 图表浮层:DrawingContextMenu(画线左键菜单)/ range-select-overlay(操作线确认按钮为画布实现,见 drawing/CLAUDE.md)
+  │     ├─ 图表浮层:DrawingContextMenu(画线左键菜单)/ range-select-overlay(操作线确认按钮为画布实现,见 drawing/AGENTS.md)
   │     └─ 经 ModalProvider 打开的弹窗内容:RangeStatsDialog / ActionTypeDialog / TextInputDialog
   ├─ Sidebar.tsx 右侧自选/浏览(自选持久化 mp_watchlist)
   └─ modal/ 全局弹窗体系
@@ -27,7 +27,7 @@ App.tsx 编排:股票/周期/设置/自选状态、9 种画线模式互斥、指
 
 ## 关键坑(跨文件才能理解)
 
-### 1. 弹窗必须从 BaseModal 衍生,分两种形态(根 CLAUDE.md 规则 5)
+### 1. 弹窗必须从 BaseModal 衍生,分两种形态(根 AGENTS.md 规则 5)
 
 - **全屏弹窗(center/right)**:经 `ModalProvider.open({ title, content })`。`content` 是函数时可接收 `{ close }` 自行关闭(如「确定」按钮);它只是**面板内容**,外壳由 ModalStack 包 BaseModal。`ActionTypeDialog`/`TextInputDialog`/`RangeStatsDialog`/`IndicatorConfigDialog`/`SettingsDialog` 都是纯内容组件,**不自建面板外壳**。尺寸:`width`(px)或 `widthPct`/`heightPct`(视口百分比,如自定义指标弹窗默认 50/50)。
 - **容器内浮层(float)**:直接 `<BaseModal placement="float" x={x} y={y}>`,坐标是**容器内 CSS px**。`DrawingContextMenu` 用这种(操作线确认按钮已是画布实现,无 React 浮层)。
@@ -41,7 +41,7 @@ ModalStack 的结构是 `fixed inset-0 z-[1000+i]` 包裹「`absolute` 遮罩 + 
 
 弹窗内容/面板组件只做渲染,不做业务。超 250 行即拆分(如 `IndicatorConfigDialog` 拆出 `IndicatorLineEditor`/`IndicatorPeriodEditor`),逻辑继续下沉到 `src/indicators/` 或 `src/drawing/`。
 
-### 4. 样式统一 Tailwind utility + @theme token(根 CLAUDE.md 规则 6)
+### 4. 样式统一 Tailwind utility + @theme token(根 AGENTS.md 规则 6)
 
 - 所有 UI 样式用 Tailwind utility 写在 JSX,颜色用 `bg-panel`/`text-ink`/`text-muted`/`text-accent`/`text-up`/`text-down`/`bg-input`/`bg-yellow`/`bg-cyan`/`bg-purple` 等 token,**不写死 hex、不新增手写组件类**。
 - 极少数无法 utility 化的全局钩子放 `src/index.css`(如 `.drawing-menu .modal-body` 的 float 布局覆盖)。新增这类钩子要克制。

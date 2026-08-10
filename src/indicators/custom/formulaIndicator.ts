@@ -7,16 +7,20 @@
  */
 
 import { defineIndicator } from './defineIndicator'
+import type { LineStyle, LineWidth } from 'lightweight-charts'
 import {
   evaluateFormula,
+  evaluateNode,
   evaluateFormulaScript,
   FormulaError,
+  isSticklineNode,
   parseFormula,
   parseFormulaExpr,
   parseFormulaScript,
+  toNumArr,
   type FormulaStatement,
 } from './formula'
-import type { CustomIndicatorDef, CustomOutput, CustomScale } from './types'
+import type { CustomCandlePoint, CustomIndicatorDef, CustomOutput, CustomOutputMeta, CustomScale } from './types'
 
 /** 公式指标输出形态(弹窗可选,对应渲染器支持的形态子集) */
 export type FormulaShape = 'line' | 'area' | 'histogram' | 'baseline' | 'band'
@@ -43,6 +47,12 @@ export interface FormulaOutputSpec {
   scale?: CustomScale
   /** 是否显示(缺省 true) */
   visible?: boolean
+  /** 行尾声明的线色(面板可覆盖;缺省用调色板) */
+  color?: string
+  /** 行尾声明的线宽(1-4;仅折线/基线形态生效) */
+  width?: LineWidth
+  /** 行尾声明的线型(仅折线/基线形态生效) */
+  style?: LineStyle
 }
 
 export interface FormulaIndicatorSpec {
@@ -81,52 +91,71 @@ function specOf(outputSpecs: FormulaIndicatorSpec['outputSpecs'], name: string):
 export function defineFormulaIndicator(spec: FormulaIndicatorSpec): CustomIndicatorDef {
   const stmts = parseFormulaScript(spec.formula)
   const isScript = stmts.length > 1 || stmts[0].name !== 'main'
-  const color = spec.color ?? DEFAULT_COLOR
 
   if (isScript) {
-    // 私有变量(NAME := EXPR)只计算不渲染;公共输出至少一条
-    const publicStmts = stmts.filter((s) => s.kind !== 'var')
-    if (publicStmts.length === 0) {
+    // 私有变量(NAME := EXPR)只计算不渲染;公共输出 / STICKLINE 竖条至少一条
+    const outputStmts = stmts.filter((s) => s.kind === 'output')
+    const stickStmts = stmts.filter((s) => s.kind === 'stick')
+    if (outputStmts.length === 0 && stickStmts.length === 0) {
       throw new FormulaError('脚本至少需要一条输出(使用 := 定义的名称是私有变量,不渲染)')
     }
     // 脚本变量集合含私有变量:band 下轨 / 后续输出均可引用(引用未定义变量在构建期报错)
     const defined = new Set(stmts.map((s) => s.name))
     const lowerAsts = new Map<string, FormulaStatement>()
-    for (const s of publicStmts) {
+    for (const s of outputStmts) {
       const os = specOf(spec.outputSpecs, s.name)
       if (os.shape === 'band' && os.lower?.trim()) {
         lowerAsts.set(s.name, parseFormulaExpr(os.lower, defined))
       }
     }
 
-    const outputs = publicStmts.map((s, i) => {
-      const os = specOf(spec.outputSpecs, s.name)
-      return {
-        key: s.name,
-        label: os.label ?? s.name.toUpperCase(),
-        type: os.shape,
-        color: FORMULA_PALETTE[i % FORMULA_PALETTE.length],
-        scale: os.scale,
-        visible: os.visible,
-      }
-    })
+    const outputs: CustomOutputMeta[] = [
+      ...outputStmts.map((s, i) => {
+        const os = specOf(spec.outputSpecs, s.name)
+        const meta: CustomOutputMeta = {
+          key: s.name,
+          label: os.label ?? s.name.toUpperCase(),
+          type: os.shape,
+          color: os.color ?? FORMULA_PALETTE[i % FORMULA_PALETTE.length],
+          width: os.width,
+          style: os.style,
+          scale: os.scale,
+          visible: os.visible,
+        }
+        return meta
+      }),
+      // STICKLINE 裸语句 → bar 竖条输出(open/close = 起始/结束价;面板不可编辑,样式走行尾声明)
+      ...stickStmts.map((s, i) => {
+        const meta: CustomOutputMeta = {
+          key: s.name,
+          label: s.name.toUpperCase(),
+          type: 'bar',
+          color: s.style?.color ?? FORMULA_PALETTE[i % FORMULA_PALETTE.length],
+        }
+        return meta
+      }),
+    ]
     const calc: CustomIndicatorDef['calc'] = (ctx): CustomOutput[] => {
       // 全部语句(含私有)顺序求值,私有变量进入 vars 供后续引用
       const vars = evaluateFormulaScript(stmts, ctx)
-      return publicStmts.map((s, i) => {
+      const out: CustomOutput[] = []
+      for (const s of outputStmts) {
         const os = specOf(spec.outputSpecs, s.name)
-        const lineColor = FORMULA_PALETTE[i % FORMULA_PALETTE.length]
-        const data = ctx.points(vars[s.name])
+        const lineColor = os.color ?? FORMULA_PALETTE[outputStmts.indexOf(s) % FORMULA_PALETTE.length]
+        const data = ctx.points(toNumArr(vars[s.name], ctx))
         switch (os.shape) {
           case 'area':
-            return { type: 'area', key: s.name, label: s.name.toUpperCase(), color: lineColor, data }
+            out.push({ type: 'area', key: s.name, label: s.name.toUpperCase(), color: lineColor, data })
+            break
           case 'histogram':
-            return { type: 'histogram', key: s.name, label: s.name.toUpperCase(), color: lineColor, data }
+            out.push({ type: 'histogram', key: s.name, label: s.name.toUpperCase(), color: lineColor, data })
+            break
           case 'baseline':
-            return { type: 'baseline', key: s.name, label: s.name.toUpperCase(), baseValue: os.baseValue ?? 0, data }
+            out.push({ type: 'baseline', key: s.name, label: s.name.toUpperCase(), baseValue: os.baseValue ?? 0, data })
+            break
           case 'band': {
             const lower = lowerAsts.get(s.name)
-            return {
+            out.push({
               type: 'band',
               key: s.name,
               label: s.name.toUpperCase(),
@@ -135,17 +164,38 @@ export function defineFormulaIndicator(spec: FormulaIndicatorSpec): CustomIndica
               opacity: 0.15,
               upper: data,
               lower: lower ? ctx.points(evaluateFormula(lower.ast, ctx, vars)) : data,
-            }
+            })
+            break
           }
           default:
-            return { type: 'line', key: s.name, label: s.name.toUpperCase(), color: lineColor, data }
+            out.push({ type: 'line', key: s.name, label: s.name.toUpperCase(), color: lineColor, data })
         }
-      })
+      }
+      // STICKLINE(cond, p1, p2, width, empty):cond 为真处绘制 p1→p2 竖条
+      for (const s of stickStmts) {
+        if (!isSticklineNode(s.ast)) continue
+        const cond = toNumArr(evaluateNode(s.ast.args[0], ctx, vars), ctx)
+        const from = toNumArr(evaluateNode(s.ast.args[1], ctx, vars), ctx)
+        const to = toNumArr(evaluateNode(s.ast.args[2], ctx, vars), ctx)
+        const color = s.style?.color ?? FORMULA_PALETTE[stickStmts.indexOf(s) % FORMULA_PALETTE.length]
+        const data: CustomCandlePoint[] = []
+        for (let i = 0; i < ctx.bars.length; i++) {
+          const c = cond[i]
+          const f = from[i]
+          const t = to[i]
+          if (c === null || c === 0 || f === null || t === null) continue
+          data.push({ time: ctx.bars[i].time, open: f, close: t, high: Math.max(f, t), low: Math.min(f, t) })
+        }
+        out.push({ type: 'bar', key: s.name, label: s.name.toUpperCase(), color, data })
+      }
+      return out
     }
     return defineIndicator({
       id: spec.id,
       title: spec.title,
-      description: `公式脚本:\n${stmts.map((s) => `${s.name} = ${s.exprText}`).join('\n')}`,
+      description: `公式脚本:\n${stmts
+        .map((s) => (s.kind === 'stick' ? s.exprText : `${s.name} = ${s.exprText}`))
+        .join('\n')}`,
       defaultPane: 'overlay',
       outputs,
       calc,
@@ -155,6 +205,8 @@ export function defineFormulaIndicator(spec: FormulaIndicatorSpec): CustomIndica
   // 单表达式路径
   const upperAst = stmts[0].ast
   const lowerAst = spec.shape === 'band' ? parseFormula(spec.formula2 ?? '') : null
+  const mainOs = specOf(spec.outputSpecs, 'main')
+  const color = mainOs.color ?? spec.color ?? DEFAULT_COLOR
 
   const calc: CustomIndicatorDef['calc'] = (ctx): CustomOutput[] => {
     const upper = ctx.points(evaluateFormula(upperAst, ctx))
@@ -190,7 +242,7 @@ export function defineFormulaIndicator(spec: FormulaIndicatorSpec): CustomIndica
     title: spec.title,
     description: `公式:${spec.formula}${spec.shape === 'band' ? `  下轨:${spec.formula2 ?? ''}` : ''}`,
     defaultPane: 'overlay',
-    outputs: [{ key: 'main', label: spec.title, type: spec.shape, color }],
+    outputs: [{ key: 'main', label: spec.title, type: spec.shape, color, width: mainOs.width, style: mainOs.style }],
     calc,
   })
 }

@@ -429,10 +429,19 @@ function latestValue(out: CustomOutput): number | null {
   }
 }
 
-/** 十六进制 → rgba(字符串透明;hex 支持 #rgb/#rrggbb) */
+/** 十六进制 → rgba(字符串透明;hex 支持 #rgb/#rrggbb/#rrggbbaa;带 alpha 的 hex 按比例叠加透明度) */
 function hexA(hex: string, alpha: number): string {
   const h = hex.replace('#', '')
   const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h
+  if (full.length === 8) {
+    const num = Number.parseInt(full, 16)
+    if (Number.isNaN(num)) return hex
+    const r = (num >> 24) & 255
+    const g = (num >> 16) & 255
+    const b = (num >> 8) & 255
+    const a = (num & 255) / 255
+    return `rgba(${r}, ${g}, ${b}, ${(a * alpha).toFixed(3)})`
+  }
   const num = Number.parseInt(full, 16)
   if (Number.isNaN(num) || full.length !== 6) return hex
   const r = (num >> 16) & 255

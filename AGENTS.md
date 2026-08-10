@@ -11,7 +11,7 @@ TradingView 风格 A 股日 K 看板(React 19 + Vite 8 + TypeScript)。图表基
 1. **充分但不过度的组件抽象** — 抽象以降低真实复杂度为准,不为抽象而抽象;每个抽象必须有清晰的职责边界。
 2. **自顶向下、低层优先** — 新增/修改任何功能时自顶向下考虑:能放在数据层/工具层(`src/api/`、`src/drawing/`)解决的,就不要在 UI 组件里处理;把问题与错误拦截在尽可能低的层次,避免遗漏上抛到更高层。
 3. **tsx 组件文件 ≤250 行左右** — 单个 **`.tsx` 组件文件**控制在 250 行左右,超限即拆分,把逻辑下沉到更低的层次。`.ts` 模块(控制器、primitive、工具)不受此限制。
-4. **文档同步** — `src/drawing/`、`src/indicators/`、`src/components/` 各自维护独立的 `AGENTS.md`(目录级结构、约定与关键坑)。**修改这些目录的结构或逻辑时,必须同步更新对应的 `AGENTS.md`**;根据更新的内容自行判断是否还需回写根 `AGENTS.md`(仅当改动影响全局约定/跨目录协作时才动根文档,目录内细节留在子文档)。
+4. **文档同步** — `src/drawing/`、`src/indicators/`(含 `src/indicators/custom/`)、`src/components/` 各自同时维护 `AGENTS.md` 与 `CLAUDE.md` 两份同步文档(目录级结构、约定与关键坑,分别面向 Codex 与 Claude Code)。**修改这些目录的结构或逻辑时,必须同步更新对应的两份文档**;根据更新的内容自行判断是否还需回写根 `AGENTS.md`/`CLAUDE.md`(仅当改动影响全局约定/跨目录协作时才动根文档,目录内细节留在子文档)。
 5. **弹窗统一基础组件** — 系统内**所有弹窗/浮层必须从 `src/components/modal/BaseModal.tsx` 衍生**:全屏弹窗(指标配置/设置/区间统计等)经 `ModalProvider` 渲染,容器内浮层(画线编辑菜单等)用 `placement="float"` 自定位。新增弹窗不得自建面板外壳样式,统一复用 BaseModal(Tailwind utility 面板)。(操作价格线的确认交互已是 primitive 画布实现,不属浮层。)
 6. **样式统一 Tailwind utility** — 所有 UI 样式用 **Tailwind utility class 写在 JSX** 上,颜色一律用 `@theme` token(`bg-panel`/`text-ink`/`text-muted`/`text-accent`/`text-up`/`text-down` 等),**不写死 hex、不新增手写组件类**。`src/index.css` 只含 `@import "tailwindcss"` + `@theme` 色板 + `@layer base` 基础样式 + 极少数无法 utility 化的全局钩子/动画(`@keyframes modal-slide-right`、`.drawing-menu .modal-body` 的 float 布局覆盖钩子)。图表库/primitive 的 canvas 颜色是 TS 常量,独立于 CSS,保持不动。
 

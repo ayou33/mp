@@ -10,13 +10,11 @@ import {
   type UserFormulaRecord,
 } from '../../indicators/custom'
 import type { IndicatorConfig } from '../../indicators/IndicatorController'
-import type { LineDraft } from './IndicatorLineEditor'
-import { defaultFormulaDraft, FormulaHelp, FormulaOutputSection, SegmentedControl } from './FormulaOutputLines'
+import { FormulaHelp, FormulaOutputLines, SegmentedControl } from './FormulaOutputLines'
 import { FormulaHelpPanel } from './FormulaHelpPanel'
 import {
   buildFormulaCommit,
   initLineBase,
-  initLineDrafts,
   initLineLabels,
   initLineLower,
   initLineScales,
@@ -55,7 +53,6 @@ export function CustomIndicatorDialog({ id, config, onApply, onDelete, onDone }:
   const [formula2, setFormula2] = useState(existing?.formula2 ?? '')
   const [baseValue, setBaseValue] = useState(existing?.baseValue !== undefined ? String(existing.baseValue) : '')
   const [pane, setPane] = useState<CustomPane>(entry?.pane ?? 'overlay')
-  const [lineDrafts, setLineDrafts] = useState<Record<string, LineDraft>>(() => initLineDrafts(existing, entry))
   /** 多输出脚本:每条输出的形态(缺省 line) */
   const [lineShapes, setLineShapes] = useState<Record<string, FormulaShape>>(() => initLineShapes(existing))
   /** 多输出脚本:band 输出的下轨公式 */
@@ -81,9 +78,8 @@ export function CustomIndicatorDialog({ id, config, onApply, onDelete, onDone }:
   }, [formula])
   const scriptMode = parsed !== null && (parsed.length > 1 || parsed[0].name !== 'main')
   // 私有变量(NAME := EXPR)参与计算但不渲染,不进入输出配置列表
-  const lineNames = scriptMode && parsed ? parsed.filter((s) => s.kind !== 'var').map((s) => s.name) : ['main']
+  const lineNames = scriptMode && parsed ? parsed.filter((s) => s.kind === 'output').map((s) => s.name) : ['main']
 
-  const setDraft = (name: string, draft: LineDraft) => setLineDrafts((p) => ({ ...p, [name]: draft }))
   const setLineShape = (name: string, v: FormulaShape) => setLineShapes((p) => ({ ...p, [name]: v }))
   const setLower = (name: string, v: string) => setLineLower((p) => ({ ...p, [name]: v }))
   const setBase = (name: string, v: string) => setLineBase((p) => ({ ...p, [name]: v }))
@@ -103,7 +99,6 @@ export function CustomIndicatorDialog({ id, config, onApply, onDelete, onDone }:
         pane,
         scriptMode,
         lineNames,
-        lineDrafts,
         lineShapes,
         lineLower,
         lineBase,
@@ -111,7 +106,6 @@ export function CustomIndicatorDialog({ id, config, onApply, onDelete, onDone }:
         lineScales,
         lineVisible,
         entry,
-        existing,
       })
       onApply(rec, entryNext)
       onDone()
@@ -196,26 +190,24 @@ export function CustomIndicatorDialog({ id, config, onApply, onDelete, onDone }:
         <SegmentedControl value={pane} options={PANE_OPTIONS} onChange={setPane} />
       </div>
 
-      {/* 输出线样式 + Y 轴分配 */}
-      <FormulaOutputSection
-        scriptMode={scriptMode}
-        lineNames={lineNames}
-        lineDrafts={lineDrafts}
-        onDraft={setDraft}
-        lineShapes={lineShapes}
-        onShape={setLineShape}
-        lineLower={lineLower}
-        onLower={setLower}
-        lineBase={lineBase}
-        onBase={setBase}
-        lineLabels={lineLabels}
-        onLabel={setLineLabel}
-        lineScales={lineScales}
-        onScale={setLineScale}
-        lineVisible={lineVisible}
-        onVisible={setLineVis}
-        mainDraft={lineDrafts['main'] ?? defaultFormulaDraft('main', 0, existing?.color)}
-      />
+      {/* 多输出脚本:每行配置(形态/显示名/Y轴/可见性;线色/线宽/线型一律走行尾声明) */}
+      {scriptMode && (
+        <FormulaOutputLines
+          names={lineNames}
+          shapes={lineShapes}
+          onShape={setLineShape}
+          lowers={lineLower}
+          onLower={setLower}
+          bases={lineBase}
+          onBase={setBase}
+          labels={lineLabels}
+          onLabel={setLineLabel}
+          scales={lineScales}
+          onScale={setLineScale}
+          visibles={lineVisible}
+          onVisible={setLineVis}
+        />
+      )}
 
       {/* 校验错误 */}
       {error && <p className="m-0 text-xs text-down">{error}</p>}

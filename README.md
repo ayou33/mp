@@ -62,4 +62,4 @@ src/
   data/        常用 A 股清单
 ```
 
-各目录维护独立的 `CLAUDE.md`,内含结构、约定与关键坑。
+各目录同时维护 `AGENTS.md` 与 `CLAUDE.md` 两份同步文档(分别面向 Codex 与 Claude Code),内含结构、约定与关键坑。

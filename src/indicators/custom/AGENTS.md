@@ -123,7 +123,7 @@ MA5 = EMA(C,5), COLORRED, DASH, WIDTH2
 
 ## 关键坑
 
-### 1. 就地更新状态对象(同 indicators/CLAUDE.md 坑 1)
+### 1. 就地更新状态对象(同 indicators/AGENTS.md 坑 1)
 
 `CustomIndicatorInstance` 内部 primitive(轴标签/角标/BandPrimitive)构造时捕获状态对象**引用**,更新必须就地改属性 + `requestUpdate?.()`,**绝不整体替换**。
 

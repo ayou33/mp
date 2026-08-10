@@ -1,6 +1,4 @@
-import { LineStyle } from 'lightweight-charts'
-import { FORMULA_PALETTE, FORMULA_SHAPE_LABEL, type FormulaShape } from '../../indicators/custom'
-import type { LineDraft } from './IndicatorLineEditor'
+import { FORMULA_SHAPE_LABEL, type FormulaShape } from '../../indicators/custom'
 
 /** 弹窗通用输入框样式(与 CustomIndicatorDialog 内联一致) */
 export const INPUT_CLS =
@@ -20,15 +18,6 @@ export const SCALE_OPTIONS: Array<{ value: 'right' | 'independent'; label: strin
   { value: 'right', label: '主轴' },
   { value: 'independent', label: '独立轴' },
 ]
-
-/** 某条输出线的默认草稿(name='main' 用用户色,其余按调色板顺序取色) */
-export function defaultFormulaDraft(name: string, index: number, userColor?: string): LineDraft {
-  return {
-    color: name === 'main' ? (userColor ?? '#f0b90b') : FORMULA_PALETTE[index % FORMULA_PALETTE.length],
-    width: '1',
-    style: LineStyle.Solid,
-  }
-}
 
 /** 通用分段选择器(输出形态/挂载位置/Y轴共用) */
 export function SegmentedControl<T extends string>({

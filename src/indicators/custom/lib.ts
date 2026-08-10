@@ -167,6 +167,25 @@ export function ref(values: NumArr, n: number): NumArr {
   return out
 }
 
+/** 未来引用(REFX):当前值为 n 根后的值;末尾 n 根为 null。n=0 原样返回。 */
+export function refx(values: NumArr, n: number): NumArr {
+  if (n <= 0) return [...values]
+  const out: NumArr = new Array(values.length).fill(null)
+  for (let i = 0; i + n < values.length; i++) out[i] = values[i + n]
+  return out
+}
+
+/** 有效值计数(BARSCOUNT):到当前位为止的有效值个数(从第一个有效值起 1 计数)。 */
+export function barsCount(values: NumArr): NumArr {
+  const out: NumArr = new Array(values.length).fill(null)
+  let count = 0
+  for (let i = 0; i < values.length; i++) {
+    if (values[i] !== null) count++
+    out[i] = count
+  }
+  return out
+}
+
 /** 逐元素取绝对值。 */
 export function abs(values: NumArr): NumArr {
   return values.map((v) => (v === null ? null : Math.abs(v)))
@@ -247,6 +266,16 @@ export function crossUnder(a: NumArr | number, b: NumArr | number): NumArr {
 export function hexToRgba(hex: string, alpha: number): string {
   const h = hex.replace('#', '')
   const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h
+  if (full.length === 8) {
+    // #rrggbbaa:自带透明度,与传入 alpha 按比例叠加
+    const num = Number.parseInt(full, 16)
+    if (Number.isNaN(num)) return hex
+    const r = (num >> 24) & 255
+    const g = (num >> 16) & 255
+    const b = (num >> 8) & 255
+    const a = (num & 255) / 255
+    return `rgba(${r}, ${g}, ${b}, ${(a * alpha).toFixed(3)})`
+  }
   const num = Number.parseInt(full, 16)
   if (Number.isNaN(num) || full.length !== 6) return hex
   const r = (num >> 16) & 255

@@ -5,14 +5,12 @@ import {
   type CustomIndicatorConfigEntry,
   type CustomPane,
   type CustomScale,
+  type InlineLineStyle,
   type FormulaOutputSpec,
   type FormulaShape,
   type FormulaStatement,
   type UserFormulaRecord,
 } from '../../indicators/custom'
-import { mergeLineStyle, type IndicatorLineStyle } from '../../indicators/SubChartIndicator'
-import { clampLineWidth, type LineDraft } from './IndicatorLineEditor'
-import { defaultFormulaDraft } from './FormulaOutputLines'
 
 export { INPUT_CLS, SHAPE_OPTIONS, TEXTAREA_CLS } from './FormulaOutputLines'
 
@@ -21,16 +19,12 @@ export const PANE_OPTIONS: Array<{ value: CustomPane; label: string }> = [
   { value: 'sub', label: '副图' },
 ]
 
-export function lineDraftFromStyle(s: IndicatorLineStyle): LineDraft {
-  return { color: s.color, width: String(s.width), style: s.style }
-}
-
 /** 尽力解析公式中的输出名(解析失败返回空数组,UI 按单表达式渲染) */
 export function formulaLineNames(source: string): string[] {
   if (!source.trim()) return []
   try {
-    // 私有变量(NAME := EXPR)不参与输出配置 UI
-    return parseFormulaScript(source).filter((s) => s.kind !== 'var').map((s) => s.name)
+    // 仅输出语句参与配置 UI(私有变量与 STICKLINE 竖条除外)
+    return parseFormulaScript(source).filter((s) => s.kind === 'output').map((s) => s.name)
   } catch {
     return []
   }
@@ -99,7 +93,6 @@ export interface FormulaCommitArgs {
   pane: CustomPane
   scriptMode: boolean
   lineNames: string[]
-  lineDrafts: Record<string, LineDraft>
   /** 多输出脚本:每条输出的形态(缺省 line) */
   lineShapes: Record<string, FormulaShape>
   /** 多输出脚本:band 输出的下轨公式 */
@@ -113,7 +106,6 @@ export interface FormulaCommitArgs {
   /** 多输出脚本:每条输出的可见性(缺省 true) */
   lineVisible: Record<string, boolean>
   entry?: CustomIndicatorConfigEntry
-  existing?: UserFormulaRecord
 }
 
 /** 校验并构造公式记录 + 实例配置;任何校验失败抛 Error(message) */
@@ -126,9 +118,13 @@ export function buildFormulaCommit(a: FormulaCommitArgs): { rec: UserFormulaReco
   } catch (e) {
     throw new Error(`公式错误:${e instanceof Error ? e.message : String(e)}`)
   }
-  if (a.scriptMode && a.lineNames.length === 0) {
+  const hasStick = allStmts.some((s) => s.kind === 'stick')
+  if (a.scriptMode && a.lineNames.length === 0 && !hasStick) {
     throw new Error('脚本至少需要一条输出(使用 := 定义的名称是私有变量,不渲染)')
   }
+  // 行尾样式声明(输出语句;私有变量上的样式声明在 parseFormulaScript 中被静默忽略)
+  const inlineByKey = new Map<string, InlineLineStyle | undefined>()
+  for (const s of allStmts) if (s.kind !== 'var') inlineByKey.set(s.name, s.style)
   if (!a.scriptMode && a.shape === 'band') {
     if (!a.formula2.trim()) throw new Error('区间形态需要输入下轨公式')
     try {
@@ -174,17 +170,32 @@ export function buildFormulaCommit(a: FormulaCommitArgs): { rec: UserFormulaReco
           spec.baseValue = b
         }
       }
+      const st = inlineByKey.get(n)
+      if (st?.color) spec.color = st.color
+      if (st?.width !== undefined) spec.width = st.width
+      if (st?.style !== undefined) spec.style = st.style
       outputSpecs[n] = spec
+    }
+  } else {
+    // 单表达式:行尾样式存入 outputSpecs.main(编辑回显 + def 默认色源)
+    const st = inlineByKey.get('main')
+    if (st?.color || st?.width !== undefined || st?.style !== undefined) {
+      outputSpecs = {
+        main: {
+          shape: a.shape,
+          ...(st.color ? { color: st.color } : {}),
+          ...(st.width !== undefined ? { width: st.width } : {}),
+          ...(st.style !== undefined ? { style: st.style } : {}),
+        },
+      }
     }
   }
 
-  const lineStyles: Record<string, IndicatorLineStyle> = {}
   const scales: Record<string, CustomScale> = {}
-  a.lineNames.forEach((n, i) => {
-    const d = a.lineDrafts[n] ?? defaultFormulaDraft(n, i, a.existing?.color)
-    lineStyles[n] = { color: d.color, width: clampLineWidth(d.width), style: d.style }
+  a.lineNames.forEach((n) => {
     scales[n] = (a.lineScales[n] ?? 'right') === 'right' ? { kind: 'right' } : { kind: 'independent', id: `${a.recId}_scale` }
   })
+  const firstColor = a.lineNames.length > 0 ? inlineByKey.get(a.lineNames[0])?.color : undefined
   const rec: UserFormulaRecord = {
     id: a.recId,
     title: a.title.trim(),
@@ -192,29 +203,17 @@ export function buildFormulaCommit(a: FormulaCommitArgs): { rec: UserFormulaReco
     formula: a.formula.trim(),
     ...(!a.scriptMode && a.shape === 'band' ? { formula2: a.formula2.trim() } : {}),
     ...(!a.scriptMode && a.shape === 'baseline' ? { baseValue: base } : {}),
-    color: lineStyles[a.lineNames[0]]?.color,
-    ...(a.scriptMode ? { outputSpecs } : {}),
+    ...(firstColor ? { color: firstColor } : {}),
+    ...(outputSpecs ? { outputSpecs } : {}),
   }
   const entryNext: CustomIndicatorConfigEntry = {
     enabled: a.entry?.enabled ?? true,
     pane: a.pane,
     params: {},
-    lineStyles,
+    // 样式唯一来源是行尾声明:清空历史面板覆盖,避免隐藏覆盖残留
+    lineStyles: {},
     scales,
     rev: (a.entry?.rev ?? 0) + 1,
   }
   return { rec, entryNext }
-}
-
-/** 编辑模式的初始草稿:按既有 lineStyles 或默认草稿 */
-export function initLineDrafts(existing: UserFormulaRecord | undefined, entry: CustomIndicatorConfigEntry | undefined): Record<string, LineDraft> {
-  const drafts: Record<string, LineDraft> = {}
-  const names = formulaLineNames(existing?.formula ?? '')
-  ;(names.length ? names : ['main']).forEach((n, i) => {
-    const fb = defaultFormulaDraft(n, i, existing?.color)
-    drafts[n] = lineDraftFromStyle(
-      mergeLineStyle(entry?.lineStyles?.[n], { color: fb.color, width: clampLineWidth(fb.width), style: fb.style }),
-    )
-  })
-  return drafts
 }

@@ -73,7 +73,10 @@ export function FormulaHelpPanel({ open, onClose }: { open: boolean; onClose: ()
               <Code>HHV(v,n)</Code> / <Code>LLV(v,n)</Code>:n 周期最高 / 最低
             </Bullet>
             <Bullet>
-              <Code>WILDER(v,n)</Code>:Wilder 平滑(RSI/ATR 用);<Code>REF(v,n)</Code>:前移 n 根
+              <Code>WILDER(v,n)</Code>:Wilder 平滑(RSI/ATR 用);<Code>REF(v,n)</Code>:前移 n 根;<Code>REFX(v,n)</Code>:未来引用(n 根后的值)
+            </Bullet>
+            <Bullet>
+              <Code>BARSCOUNT(v)</Code>:有效值计数(从首个有效值起);<Code>IF(cond,a,b)</Code>:逐元素条件选择
             </Bullet>
             <Bullet>
               <Code>ABS(v)</Code>:绝对值;<Code>MAX(a,b)</Code> / <Code>MIN(a,b)</Code>:逐元素最大 / 最小(可传数字常量)
@@ -86,9 +89,24 @@ export function FormulaHelpPanel({ open, onClose }: { open: boolean; onClose: ()
 
         <Section title="运算符与语法">
           <p className="m-0">
-            支持 <Code>+ - * / ( )</Code> 与函数嵌套;数字常量自动广播为等长序列;除零 / 无效点输出空(渲染跳过);
-            公式保存前实时校验,错误会标出位置。
+            算术 <Code>+ - * / ( )</Code>;比较 <Code>&gt; &gt;= &lt; &lt;= = &lt;&gt;</Code>(= 为相等);逻辑
+            <Code>AND / OR / NOT</Code>;函数可嵌套;数字常量自动广播为等长序列;除零 / 无效点输出空(渲染跳过)。
           </p>
+          <ul className="m-0 flex flex-col gap-1 pl-4">
+            <Bullet>
+              注释:<Code>{"{...}"}</Code> 块注释(可跨行)与 <Code>//</Code> 行注释
+            </Bullet>
+            <Bullet>
+              输出名支持中文(如 <Code>大负均值 = ...</Code>);TDX 单冒号 <Code>K:KDJ.K</Code> 等价 <Code>K = KDJ.K</Code>
+            </Bullet>
+            <Bullet>
+              变量可为数字常量(如 <Code>N := 244</Code>),可直接作函数参数;<Code>SUM(X, N)</Code> 合法
+            </Bullet>
+            <Bullet>
+              裸 <Code>STICKLINE(cond, p1, p2, width, empty)</Code> 语句绘制 p1→p2 竖条(自动命名 stick1...),可带行尾样式;
+              宽 / 空心参数暂仅解析,不参与渲染
+            </Bullet>
+          </ul>
         </Section>
 
         <Section title="输出形态">
@@ -125,6 +143,23 @@ export function FormulaHelpPanel({ open, onClose }: { open: boolean; onClose: ()
           </ul>
         </Section>
 
+        <Section title="行尾样式声明(通达信风格)">
+          <ul className="m-0 flex flex-col gap-1 pl-4">
+            <Bullet>
+              每条输出表达式后可直接声明样式:<Code>MA5 = EMA(C,5), COLORRED, DASH, WIDTH2</Code>(逗号分隔,大小写不敏感)
+            </Bullet>
+            <Bullet>
+              线色:<Code>COLORRED</Code> / <Code>COLORGREEN</Code> / <Code>COLORBLUE</Code> / <Code>COLORYELLOW</Code> / <Code>COLORWHITE</Code> / <Code>COLORMAGENTA</Code> / <Code>COLORCYAN</Code> / <Code>COLORPURPLE</Code> / <Code>COLORGRAY</Code>,或 <Code>COLORRRGGBB</Code> / <Code>COLORRRGGBBAA</Code>(RGB 顺序;8 位最后两位为透明度,如 <Code>COLORFF550080</Code> = 50% 透明)
+            </Bullet>
+            <Bullet>
+              线型:<Code>SOLID</Code> / <Code>DASH</Code> / <Code>DOT</Code>;线宽:<Code>WIDTH1</Code>~<Code>WIDTH4</Code>(仅折线 / 基线形态生效)
+            </Bullet>
+            <Bullet>
+              样式完全由行尾声明控制(缺省调色板);编辑面板只负责形态 / 显示名 / Y 轴 / 可见性;私有变量 <Code>:=</Code> 上的样式声明会被静默忽略
+            </Bullet>
+          </ul>
+        </Section>
+
         <Section title="挂载位置与 Y 轴">
           <ul className="m-0 flex flex-col gap-1 pl-4">
             <Bullet>
@@ -138,16 +173,18 @@ export function FormulaHelpPanel({ open, onClose }: { open: boolean; onClose: ()
 
         <Section title="综合示例">
           <pre className="m-0 overflow-x-auto rounded-md bg-panel px-2.5 py-2 font-mono text-[11px] leading-relaxed text-ink">
-{`DIF  = EMA(CLOSE,12) - EMA(CLOSE,26)
-DEA  = EMA(DIF,9)
-MACD = (DIF - DEA) * 2
+{`DIF  = EMA(CLOSE,12) - EMA(CLOSE,26), COLORWHITE, WIDTH2
+DEA  = EMA(DIF,9), COLORYELLOW, DASH
+MACD = (DIF - DEA) * 2, COLORCYAN
 MID := SMA(CLOSE,20)
-UP   = MID + STDDEV(C,20)*2
-DEV  = C - MID`}
+UP   = MID + STDDEV(C,20)*2, COLORBLUE
+DEV  = C - MID, COLORMAGENTA
+BUY  := C > MID AND VOLUME > 1000000
+STICKLINE(BUY, LOW, LOW*0.98, 4, 0), COLORRED`}
           </pre>
           <ul className="m-0 flex flex-col gap-1 pl-4">
             <Bullet>
-              <Code>DIF</Code> / <Code>DEA</Code> 设为折线,<Code>MACD</Code> 设为柱状
+              <Code>DIF</Code> 白实线宽 2、<Code>DEA</Code> 黄虚线、<Code>MACD</Code> 青色柱状(样式直接写在行尾,形态仍在面板每行选择)
             </Bullet>
             <Bullet>
               <Code>UP</Code> 设为区间,下轨公式填 <Code>MID - STDDEV(C,20)*2</Code>
@@ -156,7 +193,10 @@ DEV  = C - MID`}
               <Code>DEV</Code> 设为基线,基准值 0;挂载选副图
             </Bullet>
             <Bullet>
-              <Code>MID := ...</Code> 是私有中间变量:参与计算、被上面引用,不单独渲染
+              <Code>MID := ...</Code> 是私有中间变量:参与计算、被上面引用,不单独渲染(不能声明样式)
+            </Bullet>
+            <Bullet>
+              <Code>BUY</Code> 是条件变量,<Code>STICKLINE</Code> 裸语句在满足条件处画竖条(比较 + 逻辑 + 条件竖条)
             </Bullet>
           </ul>
         </Section>
