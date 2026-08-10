@@ -37,6 +37,8 @@ import { calcBBI } from './bbi'
 import { calcMA } from './ma'
 import { calcEMA } from './ema'
 import { calcBOLL } from './boll'
+import { CustomIndicatorManager } from './custom/CustomIndicatorManager'
+import type { CustomIndicatorConfigEntry } from './custom/types'
 
 /** 内置指标 id(主图 + 副图);lineStyles 按此分组 */
 export type IndicatorId =
@@ -85,6 +87,8 @@ export interface IndicatorConfig {
   dmiPeriod: number
   /** 各输出线样式覆盖(未覆盖的线用默认);key:MA/EMA=索引字符串,BOLL=upper/mid/lower,BBI=bbi,副图=组件 key */
   lineStyles: Partial<Record<IndicatorId, Record<string, IndicatorLineStyle>>>
+  /** 自定义指标实例配置(id → 启用/挂载位置/参数/线样式/Y 轴);缺省 {} */
+  custom: Record<string, CustomIndicatorConfigEntry>
 }
 
 /** 图例条目(label 常显,value 跟随十字线) */
@@ -157,6 +161,7 @@ export class IndicatorController {
   private _legendCallback: ((legend: ChartLegend) => void) | null = null
   private _mainAxisPrimitive: IndicatorAxisPrimitive
   private _mainAxisState: IndicatorAxisState = { items: [] }
+  private _customMgr: CustomIndicatorManager
 
   constructor(chart: IChartApi, config: IndicatorConfig, main: MainSeriesRef) {
     this._chart = chart
@@ -166,7 +171,10 @@ export class IndicatorController {
     this._subOrder = SUB_CHART_DEFS.filter((e) => e.enabled(config)).map((e) => e.id)
     this._mainAxisPrimitive = new IndicatorAxisPrimitive(main.candle, this._mainAxisState)
     main.candle.attachPrimitive(this._mainAxisPrimitive)
+    this._customMgr = new CustomIndicatorManager(chart)
     this._syncSeries()
+    // 先同步副图 pane 基数,再注入自定义配置(避免启动时按默认基数重复重建)
+    this._customMgr.setConfig(config.custom ?? {})
     this._chart.subscribeCrosshairMove(this._onCrosshairMove)
   }
 
@@ -181,6 +189,7 @@ export class IndicatorController {
     this._config = { ...config }
     this._updateSubOrder(prev)
     this._syncSeries()
+    this._customMgr.setConfig(config.custom ?? {})
     this._recompute()
     this._emitLegend()
   }
@@ -189,12 +198,14 @@ export class IndicatorController {
   update(bars: KlineBar[]): void {
     this._bars = bars
     this._recompute()
+    this._customMgr.update(bars)
     this._emitLegend()
   }
 
   dispose(): void {
     this._chart.unsubscribeCrosshairMove(this._onCrosshairMove)
     this._main.candle.detachPrimitive(this._mainAxisPrimitive)
+    this._customMgr.dispose()
     for (const inst of this._subCharts.values()) inst.dispose()
     this._subCharts.clear()
     for (const s of this._maSeries) this._chart.removeSeries(s)
@@ -317,6 +328,9 @@ export class IndicatorController {
         pane++
       }
     }
+
+    // 自定义副图紧随内置副图之后(pane 基数 = 内置副图数 + 1)
+    this._customMgr.setPaneBase(pane)
   }
 
   /** 从当前配置派生副图指标参数(编辑面板改动后经 setConfig 重算) */
@@ -398,6 +412,7 @@ export class IndicatorController {
   private _onCrosshairMove = (param: MouseEventParams<Time>): void => {
     if (!this._legendCallback) return
     for (const inst of this._subCharts.values()) inst.applyCrosshair(param)
+    this._customMgr.applyCrosshair(param)
     this._legendCallback(this._buildLegend(param))
   }
 
@@ -405,6 +420,7 @@ export class IndicatorController {
   private _emitLegend(): void {
     const empty = { seriesData: new Map() } as MouseEventParams<Time>
     for (const inst of this._subCharts.values()) inst.applyCrosshair(empty)
+    this._customMgr.applyCrosshair(empty)
     this._legendCallback?.(this._buildLegend(empty))
   }
 
@@ -413,7 +429,7 @@ export class IndicatorController {
       ohlcv: this._buildOHLCV(param),
       indicators: this._buildIndicatorEntries(
         (s) => param.seriesData.get(s) as LineData<Time> | undefined,
-      ),
+      ).concat(this._customMgr.legendEntries()),
     }
   }
 

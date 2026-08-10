@@ -20,6 +20,10 @@ export interface ModalConfig {
   content: ReactNode | ((api: { close: () => void }) => ReactNode)
   /** 宽度(px,居中弹窗生效) */
   width?: number
+  /** 宽度百分比(相对视口 vw,居中弹窗生效;覆盖 width) */
+  widthPct?: number
+  /** 高度百分比(相对视口 vh,居中/右侧弹窗生效) */
+  heightPct?: number
   /** 位置:居中弹窗(默认)或 TradingView 风格右侧面板 */
   placement?: ModalPlacement
   /** 关闭回调(关闭指定弹窗时触发) */
@@ -101,7 +105,7 @@ function ModalStack({ modals, onClose }: { modals: ModalConfig[]; onClose: (key?
             style={{ zIndex: 1000 + i }}
           >
             <div className="absolute inset-0 bg-black/50" onClick={() => isTop && onClose(m.key)} />
-            <BaseModal title={m.title} onClose={() => onClose(m.key)} placement={placement} width={m.width}>
+            <BaseModal title={m.title} onClose={() => onClose(m.key)} placement={placement} width={m.width} widthPct={m.widthPct} heightPct={m.heightPct}>
               {content}
             </BaseModal>
           </div>

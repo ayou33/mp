@@ -9,6 +9,15 @@ import { Sidebar, type SidebarTab } from './components/Sidebar'
 import { TopBar } from './components/topbar/TopBar'
 import { DEFAULT_SETTINGS, SettingsDialog, type UserSettings } from './components/topbar/SettingsDialog'
 import { useModal } from './components/modal/ModalProvider'
+import {
+  loadUserFormulas,
+  registerUserFormula,
+  saveUserFormulas,
+  unregisterUserFormula,
+  USER_FORMULA_RECORDS,
+  type CustomIndicatorConfigEntry,
+  type UserFormulaRecord,
+} from './indicators/custom'
 import type {
   ChartLegend,
   IndicatorConfig,
@@ -82,6 +91,7 @@ function defaultIndicatorConfig(): IndicatorConfig {
     atrPeriod: 14,
     dmiPeriod: 14,
     lineStyles: {},
+    custom: {},
   }
 }
 
@@ -160,6 +170,31 @@ export default function App() {
       /* 忽略存储失败 */
     }
   }, [indicatorConfig])
+
+  // 用户手写公式指标:初始化时从 localStorage 载入并注册(def 进注册表),变更时持久化
+  const [userFormulas, setUserFormulas] = useState<UserFormulaRecord[]>(loadUserFormulas)
+  useEffect(() => {
+    saveUserFormulas()
+  }, [userFormulas])
+
+  /** 保存用户公式指标:编译注册公式 + 写 config.custom[id] 实例配置 */
+  const applyUserFormula = useCallback((rec: UserFormulaRecord, entry: CustomIndicatorConfigEntry) => {
+    registerUserFormula(rec)
+    setUserFormulas([...Array.from(USER_FORMULA_RECORDS.values())])
+    setIndicatorConfig((c) => ({ ...c, custom: { ...c.custom, [rec.id]: entry } }))
+  }, [])
+
+  /** 删除用户公式指标:注销注册表 + 从 config.custom 移除 */
+  const deleteUserFormula = useCallback((id: string) => {
+    unregisterUserFormula(id)
+    setUserFormulas([...Array.from(USER_FORMULA_RECORDS.values())])
+    setIndicatorConfig((c) => {
+      if (!(id in c.custom)) return c
+      const next = { ...c.custom }
+      delete next[id]
+      return { ...c, custom: next }
+    })
+  }, [])
 
   const codeRef = useRef(code)
   codeRef.current = code
@@ -271,6 +306,8 @@ export default function App() {
         onPeriodChange={changePeriod}
         indicatorConfig={indicatorConfig}
         onIndicatorConfigChange={setIndicatorConfig}
+        onApplyUserFormula={applyUserFormula}
+        onDeleteUserFormula={deleteUserFormula}
         searchDefault={code}
         onSearch={search}
         onOpenSettings={openSettings}

@@ -1,4 +1,5 @@
 import type { KlinePeriod } from '../../api/stock'
+import type { CustomIndicatorConfigEntry, UserFormulaRecord } from '../../indicators/custom'
 import type { IndicatorConfig } from '../../indicators/IndicatorController'
 import { IndicatorBar } from '../IndicatorBar'
 import { PeriodSwitcher } from './PeriodSwitcher'
@@ -10,6 +11,10 @@ interface TopBarProps {
   onPeriodChange: (period: KlinePeriod) => void
   indicatorConfig: IndicatorConfig
   onIndicatorConfigChange: (config: IndicatorConfig) => void
+  /** 保存用户公式指标 */
+  onApplyUserFormula: (rec: UserFormulaRecord, entry: CustomIndicatorConfigEntry) => void
+  /** 删除用户公式指标 */
+  onDeleteUserFormula: (id: string) => void
   /** 搜索框初始/当前显示代码(换股后同步) */
   searchDefault: string
   /** 股票搜索回调:回车触发(传用户输入,内部做代码规范化) */
@@ -23,6 +28,8 @@ export function TopBar({
   onPeriodChange,
   indicatorConfig,
   onIndicatorConfigChange,
+  onApplyUserFormula,
+  onDeleteUserFormula,
   searchDefault,
   onSearch,
   onOpenSettings,
@@ -30,7 +37,12 @@ export function TopBar({
   return (
     <div className="flex items-center gap-4 bg-panel px-4 py-2">
       <PeriodSwitcher period={period} onChange={onPeriodChange} />
-      <IndicatorBar config={indicatorConfig} onChange={onIndicatorConfigChange} />
+      <IndicatorBar
+        config={indicatorConfig}
+        onChange={onIndicatorConfigChange}
+        onApplyUserFormula={onApplyUserFormula}
+        onDeleteUserFormula={onDeleteUserFormula}
+      />
       <StockSearch defaultValue={searchDefault} onSearch={onSearch} />
       <SettingsButton onClick={onOpenSettings} />
     </div>

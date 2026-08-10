@@ -20,6 +20,7 @@ App.tsx 编排:股票/周期/设置/自选状态、9 种画线模式互斥、指
         ├─ ModalProvider.tsx 弹窗状态:open/close、多层堆叠(遮罩 z-index 1000+i)、Esc/点遮罩关闭
         └─ BaseModal.tsx 统一外壳:placement center/right(经 ModalProvider layer)/ float(容器内自定位)
               └─ 弹窗内容组件:IndicatorConfigDialog(+ IndicatorLineEditor / IndicatorPeriodEditor)
+                                     / CustomIndicatorDialog(公式编辑,+ FormulaOutputLines / formulaDialogMeta)
 ```
 
 **数据流**:React 状态(画线模式/指标配置/股票)通过 props 下传,`KLineChart` 在**渲染期**把模式开关同步到非 React 控制器(`toolsRef.current?.setXxxEnabled(...)`、`indicators.setConfig(...)`);控制器经回调把坐标/图例/数据变更抛回 React 层显示。
@@ -28,7 +29,7 @@ App.tsx 编排:股票/周期/设置/自选状态、9 种画线模式互斥、指
 
 ### 1. 弹窗必须从 BaseModal 衍生,分两种形态(根 CLAUDE.md 规则 5)
 
-- **全屏弹窗(center/right)**:经 `ModalProvider.open({ title, content })`。`content` 是函数时可接收 `{ close }` 自行关闭(如「确定」按钮);它只是**面板内容**,外壳由 ModalStack 包 BaseModal。`ActionTypeDialog`/`TextInputDialog`/`RangeStatsDialog`/`IndicatorConfigDialog`/`SettingsDialog` 都是纯内容组件,**不自建面板外壳**。
+- **全屏弹窗(center/right)**:经 `ModalProvider.open({ title, content })`。`content` 是函数时可接收 `{ close }` 自行关闭(如「确定」按钮);它只是**面板内容**,外壳由 ModalStack 包 BaseModal。`ActionTypeDialog`/`TextInputDialog`/`RangeStatsDialog`/`IndicatorConfigDialog`/`SettingsDialog` 都是纯内容组件,**不自建面板外壳**。尺寸:`width`(px)或 `widthPct`/`heightPct`(视口百分比,如自定义指标弹窗默认 50/50)。
 - **容器内浮层(float)**:直接 `<BaseModal placement="float" x={x} y={y}>`,坐标是**容器内 CSS px**。`DrawingContextMenu` 用这种(操作线确认按钮已是画布实现,无 React 浮层)。
 - 新增弹窗不得自建面板外壳样式,一律复用 BaseModal。
 
@@ -83,10 +84,16 @@ ModalStack 的结构是 `fixed inset-0 z-[1000+i]` 包裹「`absolute` 遮罩 + 
 - `KLineChart.tsx` — 图表壳:createChart(StrictMode 兼容)、Candlestick/Volume series、`DrawingTools`/`IndicatorController`/`HistoryLoader`/`VisibleRangeMark`/`CrosshairGainLabel` 装配、模式开关渲染期同步、右键框选/区间统计/操作线/文本标注弹窗接线、画线持久化(storageKey)、图表浮层渲染。操作线确认交互已下沉 drawing 层(画布按钮),无 React 确认浮层。
 - `Sidebar.tsx` — 右侧自选/浏览列表(自选可移除、浏览可加入),数据来自 `src/data/stocks.ts`。
 - `PriceInput.tsx` — 可复用价格输入:受控、滚轮 1/10/100 tick、精确 0.01、`w-full` 填父级;画线编辑/文本标注/操作线创建共用。
-- `modal/ModalProvider.tsx` — 全局弹窗系统:`open`/`close`(可指定 key)、多层堆叠(`z-index 1000+i`、下层半透明)、Esc/点遮罩关最上层;`content` 函数形式注入 `{ close }`。
-- `modal/BaseModal.tsx` — 统一弹窗外壳:`placement center`(居中)/`right`(右侧滑入)/`float`(容器内 `absolute` 自定位);center/right **内置 `relative z-10`**(防被遮罩盖住,见关键坑 2);`modal-body` 类保留作 float 布局覆盖钩子。
+- `modal/ModalProvider.tsx` — 全局弹窗系统:`open`/`close`(可指定 key)、多层堆叠(`z-index 1000+i`、下层半透明)、Esc/点遮罩关最上层;`content` 函数形式注入 `{ close }`;`ModalConfig` 支持 `widthPct`/`heightPct` 视口百分比尺寸。
+- `modal/BaseModal.tsx` — 统一弹窗外壳:`placement center`(居中)/`right`(右侧滑入)/`float`(容器内 `absolute` 自定位);center/right **内置 `relative z-10`**(防被遮罩盖住,见关键坑 2);`modal-body` 类保留作 float 布局覆盖钩子;`widthPct`/`heightPct` 按 `vw`/`vh` 百分比设宽高(50/50 = 窗口一半),`widthPct` 存在时去掉默认 `w-[420px]`。
 - `modal/IndicatorConfigDialog.tsx` — 指标参数编辑:数字参数 + 周期行 + 每输出线样式(线色/线宽/线型),草稿态确定后一次性写回 `IndicatorConfig.lineStyles`。
 - `modal/IndicatorLineEditor.tsx` — 线样式控件:`LineStyleControls`(色板 + 线宽输入 clamp 1-4 + 实/虚/点线按钮组 + 内联预览)、`clampLineWidth`。
+- `modal/CustomIndicatorDialog.tsx` — 自定义公式指标弹窗(顶栏 `+自定义指标`):手写公式定义指标;单表达式走形态选择(line/area/histogram/baseline/band);多输出脚本(任一 `NAME = EXPR`)每行一条输出,可独立选形态(折线/面积/柱状/基线/区间,band 需下轨、baseline 可设基准值;`NAME := EXPR` 为私有中间变量,只计算不渲染;字段支持简写 C/O/H/L/V);每行还可配 显示名 / Y轴(主轴/独立轴)/ 显示开关(隐藏仍参与计算);挂载位置(主图/副图)+ 每线样式;保存写 `mp_custom_formulas`(含 outputSpecs)+ `config.custom[id]`(rev 自增);弹窗根 `min-h-full` + 主公式 textarea `flex-1` 自适应撑开竖向空白;band 单输出形态下主/下轨输入区各 `flex-1` 五五等分;"公式"标签旁问号图标(help-outline)切换左侧通高说明面板。
+- `modal/FormulaOutputLines.tsx` — 公式多输出 UI 组装:`FormulaOutputLines`(每 NAME 一行 `FormulaOutputLineRow`)、`FormulaOutputSection`(多输出逐行配置,无全局 Y 轴)、`FormulaHelp`(字段/函数/脚本语法帮助);转发导出共享常量/控件。
+- `modal/FormulaOutputLineRow.tsx` — 单条输出编辑行:形态选择 + 显示名/Y轴/显示开关 + band 下轨/baseline 基准值 + 线样式。
+- `modal/formulaOutputShared.tsx` — 公式弹窗共享 UI:`SegmentedControl`(通用分段选择)、`SHAPE_OPTIONS`/`SCALE_OPTIONS`、`INPUT_CLS`/`TEXTAREA_CLS`、`defaultFormulaDraft`(默认线色:main 用户色,其余按 FORMULA_PALETTE)。
+- `modal/formulaDialogMeta.ts` — 公式弹窗纯逻辑(非组件):`buildFormulaCommit`(校验 + 构造记录/实例配置,失败抛 Error;脚本模式构造 `outputSpecs` 并校验 band 下轨/基线基准值/至少一条输出)`、`initLineDrafts`/`initLineShapes`/`initLineLower`/`initLineBase`/`initLineLabels`/`initLineScales`/`initLineVisible`/`formulaLineNames`(编辑模式恢复草稿;formulaLineNames 过滤 `:=` 私有变量)、`PANE_OPTIONS`;`SHAPE_OPTIONS`/`SCALE_OPTIONS`/`TEXTAREA_CLS`/`INPUT_CLS` 从 `FormulaOutputLines` 转发。
+- `modal/FormulaHelpPanel.tsx` — 公式特性说明悬浮面板(问号图标触发,`BaseModal placement="float"` 在弹窗左侧通高悬浮):字段 / 函数 / 指标成员引用(KDJ().K、MACD().DIF、BOLL().MID、RSI() 等)/ 运算符 / 输出形态 / 多输出脚本(含 `NAME := EXPR` 私有变量、字段简写 C/O/H/L/V)/ 挂载与轴 + 综合示例;纯内容组件不自建外壳。
 - `modal/IndicatorPeriodEditor.tsx` — 周期行编辑:`PeriodLineRows`(M1/M2 编号 + 周期输入,可内嵌线样式 `withStyle`、移除/新增);`withStyle=false`(BBI)仅编号行。
 - `DrawingContextMenu.tsx` — 画线对象左键菜单(float):`PriceInput` 改价(`NO_PRICE_KINDS` 如垂直线隐藏价格行)+ 删除;`isSystem`/`canEdit` 控制禁用。
 - `ActionTypeDialog.tsx` / `TextInputDialog.tsx` — 操作价格线/文本标注创建弹窗内容:`PriceInput` 编辑价格 + 确认(经 ModalProvider 外壳)。

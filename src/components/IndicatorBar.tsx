@@ -1,12 +1,22 @@
 import { Fragment, useEffect, useRef, type ReactNode } from 'react'
 import TuneIcon from '@iconify-react/material-symbols/tune'
+import {
+  USER_FORMULA_RECORDS,
+  type CustomIndicatorConfigEntry,
+  type UserFormulaRecord,
+} from '../indicators/custom'
 import type { IndicatorConfig, IndicatorId } from '../indicators/IndicatorController'
+import { CustomIndicatorDialog } from './modal/CustomIndicatorDialog'
 import { IndicatorConfigDialog } from './modal/IndicatorConfigDialog'
 import { useModal } from './modal/ModalProvider'
 
 interface IndicatorBarProps {
   config: IndicatorConfig
   onChange: (config: IndicatorConfig) => void
+  /** 保存用户公式指标(新建或更新):注册公式 + 写实例配置 */
+  onApplyUserFormula: (rec: UserFormulaRecord, entry: CustomIndicatorConfigEntry) => void
+  /** 删除用户公式指标 */
+  onDeleteUserFormula: (id: string) => void
 }
 
 /** 指标元数据:id + 名称 + 启用状态读取 + 开关(单一数据源,顶栏/添加弹窗共用) */
@@ -71,50 +81,12 @@ function IndicatorItem({
   )
 }
 
-/** 指标列表弹窗:点击启用/停用(自定义指标尚未支持,当前列出内置指标) */
-function AddIndicatorDialog({
-  config,
-  onChange,
-  onClose,
-}: {
-  config: IndicatorConfig
-  onChange: (config: IndicatorConfig) => void
-  onClose: () => void
-}) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      {INDICATORS.map((m) => {
-        const enabled = m.active(config)
-        return (
-          <button
-            key={m.id}
-            className={`cursor-pointer rounded-md border border-white/15 bg-transparent px-3 py-2 text-left text-sm text-ink ${
-              enabled ? 'border-accent bg-accent/10 text-accent' : ''
-            }`}
-            onClick={() => onChange(m.toggle(config))}
-          >
-            {m.title}
-          </button>
-        )
-      })}
-      <p className="m-0 text-xs text-muted">选择指标即可添加/移除</p>
-      <div className="mt-4 flex justify-end gap-2">
-        <button
-          className="cursor-pointer rounded-[4px] border border-accent bg-accent px-3.5 py-1.5 text-sm text-white hover:bg-accent-hover"
-          onClick={onClose}
-        >
-          完成
-        </button>
-      </div>
-    </div>
-  )
-}
-
 /**
- * 顶部指标栏(位于 TopBar 中间):常显全部指标;
+ * 顶部指标栏(位于 TopBar 中间):常显全部内置指标;
+ * 自定义指标为「手写公式」,由末尾 +自定义指标 打开公式编辑弹窗创建;
  * 内容超宽时**仅指标区横向滚动**,末尾 + 按钮固定不动(留给自定义指标)。
  */
-export function IndicatorBar({ config, onChange }: IndicatorBarProps) {
+export function IndicatorBar({ config, onChange, onApplyUserFormula, onDeleteUserFormula }: IndicatorBarProps) {
   const { open } = useModal()
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -158,12 +130,49 @@ export function IndicatorBar({ config, onChange }: IndicatorBarProps) {
     })
   }
 
-  function addIndicator() {
+  /** 新建自定义指标:打开公式编辑弹窗(无 id = 新建模式) */
+  function addCustom() {
     open({
-      title: '添加指标',
-      content: (api) => <AddIndicatorDialog config={config} onChange={onChange} onClose={api.close} />,
+      title: '自定义指标',
+      widthPct: 50,
+      heightPct: 80,
+      content: (api) => (
+        <CustomIndicatorDialog config={config} onApply={onApplyUserFormula} onDone={api.close} />
+      ),
     })
   }
+
+  /** 编辑已有公式指标(弹窗带删除按钮) */
+  function editCustom(id: string) {
+    const rec = USER_FORMULA_RECORDS.get(id)
+    if (!rec) return
+    open({
+      title: `${rec.title} 配置`,
+      widthPct: 50,
+      heightPct: 80,
+      content: (api) => (
+        <CustomIndicatorDialog
+          id={id}
+          config={config}
+          onApply={onApplyUserFormula}
+          onDelete={() => onDeleteUserFormula(id)}
+          onDone={api.close}
+        />
+      ),
+    })
+  }
+
+  function toggleCustom(id: string) {
+    const entry = config.custom[id]
+    if (!entry) return
+    onChange({
+      ...config,
+      custom: { ...config.custom, [id]: { ...entry, enabled: !entry.enabled } },
+    })
+  }
+
+  // 只列出「用户手写公式」指标(demos.ts 内置示例不参与顶栏展示)
+  const customItems = Array.from(USER_FORMULA_RECORDS.values()).filter((rec) => config.custom[rec.id]?.enabled)
 
   return (
     <div className="flex min-w-0 flex-1 items-center">
@@ -184,11 +193,25 @@ export function IndicatorBar({ config, onChange }: IndicatorBarProps) {
             </IndicatorItem>
           </Fragment>
         ))}
+        {/* 已启用的用户公式指标:追加在末尾,开关 + tune 编辑 */}
+        {customItems.length > 0 && (
+          <>
+            <span className="text-[#4c525e]">│</span>
+            {customItems.map((rec, i) => (
+              <Fragment key={rec.id}>
+                {i > 0 && <span className="text-[#4c525e]">│</span>}
+                <IndicatorItem active onClick={() => toggleCustom(rec.id)} onEdit={() => editCustom(rec.id)}>
+                  {rec.title}
+                </IndicatorItem>
+              </Fragment>
+            ))}
+          </>
+        )}
       </div>
       <button
-        className="ml-1 cursor-pointer hover:text-white text-sm"
-        title="添加自定义指标"
-        onClick={addIndicator}
+        className="ml-1 cursor-pointer text-sm hover:text-white"
+        title="新增自定义指标(手写公式)"
+        onClick={addCustom}
       >
         +自定义指标
       </button>

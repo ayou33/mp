@@ -1,6 +1,6 @@
 # src/indicators
 
-指标子系统:主图 MA/EMA/BBI/BOLL + 副图 RSI/MACD/KDJ/WR/CCI/OBV/ATR/DMI。基于 lightweight-charts v5 的 series 与 primitives API 装配,纯函数计算指标值。各指标参数与输出线样式(线色/线宽/线型)通过编辑面板调整(`IndicatorConfig` + `lineStyles`),由 App 持久化到 localStorage。
+指标子系统:主图 MA/EMA/BBI/BOLL + 副图 RSI/MACD/KDJ/WR/CCI/OBV/ATR/DMI + **自定义指标框架**(`custom/`,TS 声明式定义,7 种输出形态)。基于 lightweight-charts v5 的 series 与 primitives API 装配,纯函数计算指标值。各指标参数与输出线样式(线色/线宽/线型)通过编辑面板调整(`IndicatorConfig` + `lineStyles`),由 App 持久化到 localStorage。
 
 ## 分层结构(严格自顶向下)
 
@@ -14,12 +14,13 @@ subCharts.ts (SubChartIndicatorDef 定义:组件集合 + calc(bars, params))
    │  editorMeta.ts (INDICATOR_META:各指标参数 + 输出线编辑元数据,驱动编辑面板)
    ▼
 IndicatorController 统一调度:主图 MA/EMA/BBI/BOLL + 副图按激活顺序重建 + 十字光标图例
-   │
+   │  └── custom/ 自定义指标框架:CustomIndicatorManager 实例生命周期 + 挂载位置编排
+   │              (defineIndicator 定义 → CUSTOM_INDICATORS 注册 → config.custom[id] 驱动)
    ▼
 IndicatorAxis.ts 价格轴标签 primitive + 副图左上角角标 primitive
 ```
 
-新指标扩展路径:**纯函数(`ma.ts` 风格)→ `subCharts.ts` 定义(RSI_DEF 风格)→ `SUB_CHART_DEFS` 注册**;若要支持参数/线样式编辑,同步在 `editorMeta.ts` 的 `INDICATOR_META` 补参数与输出线描述。React 组件只调 `IndicatorController.setConfig/update`。
+新指标扩展路径:**内置指标** = 纯函数(`ma.ts` 风格)→ `subCharts.ts` 定义(RSI_DEF 风格)→ `SUB_CHART_DEFS` 注册;若要支持参数/线样式编辑,同步在 `editorMeta.ts` 的 `INDICATOR_META` 补参数与输出线描述。**自定义指标** = 见 `custom/CLAUDE.md`(用户走弹窗**公式 DSL** 注册;开发者可用 `defineIndicator` 声明式定义,纯注册制,不动 IndicatorController)。React 组件只调 `IndicatorController.setConfig/update`。
 
 ## 关键坑(跨文件才能理解)
 
@@ -85,3 +86,4 @@ lightweight-charts v5 各 pane 默认拉伸系数(stretch factor)均为 1,即主
 - `subCharts.ts` — 副图指标定义(`RSI_DEF`/`MACD_DEF`/`KDJ_DEF`/`WR_DEF`/`CCI_DEF`/`OBV_DEF`/`ATR_DEF`/`DMI_DEF`),`calc(bars, params)` 读参数缺省用默认周期,只声明组件集合与 calc,不含渲染逻辑。新副图指标在此扩展。
 - `editorMeta.ts` — 编辑面板元数据:`INDICATOR_META`(各指标可编辑参数 + 输出线描述;MA/EMA/WR 用 `inlineLines: true` 让「周期 + 该线样式(颜色/线宽/线型)」同行编辑、线随周期动态;BBI 的 array 参数与输出线非一一对应,编号行(`M1/M2...`,左对齐)不内嵌样式,单条 BBI 线样式在下方单独编辑),默认线色取自 `IndicatorController`/`subCharts.ts` 常量。
 - `ma.ts` / `ema.ts` / `bbi.ts` / `boll.ts` / `rsi.ts` / `macd.ts` / `kdj.ts` / `wr.ts` / `cci.ts` / `obv.ts` / `atr.ts` / `dmi.ts` — 纯函数计算,各带公式与起始索引注释(MA 从第 period 根;EMA 自第一根、初值取首收;BOLL 输出 {mid/upper/lower};RSI 用 Wilder 平滑;MACD 从第一根;KDJ 初值 50 从第一根;WR 区间 [-100,0];OBV 累计量;ATR 用 Wilder 平滑;DMI 输出 {pdi/mdi/adx/adxr})。
+- `custom/` — 自定义指标框架(独立子文档 `custom/CLAUDE.md`):声明式路径 `defineIndicator()` 工厂 + `CUSTOM_INDICATORS` 注册表 + `CustomIndicatorManager`/`CustomIndicatorInstance`(主图叠加/副图 pane/多 Y 轴)+ `lib.ts` 值级函数库;**公式路径** `formula.ts`(公式 DSL 解析/求值)+ `formulaIndicator.ts`(公式→Def)+ `userFormulas.ts`(localStorage `mp_custom_formulas` 记录注册表),顶栏 `+自定义指标` 弹窗即公式输入入口。`IndicatorConfig.custom` 为实例配置入口,`IndicatorController` 构造时装配 manager、`_syncSubCharts` 时传入副图 pane 基数、图例/十字光标与 dispose 均委托。
