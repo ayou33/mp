@@ -5,7 +5,7 @@ React 层(布局 + 弹窗 + 图表壳),只做「渲染 + 事件接线」,不承�
 ## 分层结构(自顶向下)
 
 ```
-App.tsx 编排:股票/周期/设置/自选状态、9 种画线模式互斥、指标配置、错误横幅、ModalProvider 装配
+App.tsx 编排:股票/周期/设置/自选状态、9 种画线模式互斥、指标配置、错误横幅、ModalProvider 装配、移动端浮层(mobilePanel)与底部操作栏
   ├─ topbar/TopBar.tsx 顶栏:PeriodSwitcher + IndicatorBar + StockSearch + SettingsButton
   │     ├─ PeriodSwitcher 周期切换(日/周/月)
   │     ├─ StockSearch    股票搜索(回车触发,规范化在 src/api/stock.ts)
@@ -16,6 +16,7 @@ App.tsx 编排:股票/周期/设置/自选状态、9 种画线模式互斥、指
   │     ├─ 图表浮层:DrawingContextMenu(画线左键菜单)/ range-select-overlay(操作线确认按钮为画布实现,见 drawing/AGENTS.md)
   │     └─ 经 ModalProvider 打开的弹窗内容:RangeStatsDialog / ActionTypeDialog / TextInputDialog
   ├─ Sidebar.tsx 右侧自选/浏览(自选持久化 mp_watchlist)
+  ├─ mobile/MobileActionBar.tsx 移动端底部操作栏(仅 <lg 显示):指标/画线/自选 浮层开关
   └─ modal/ 全局弹窗体系
         ├─ ModalProvider.tsx 弹窗状态:open/close、多层堆叠(遮罩 z-index 1000+i)、Esc/点遮罩关闭
         └─ BaseModal.tsx 统一外壳:placement center/right(经 ModalProvider layer)/ float(容器内自定位)
@@ -65,16 +66,25 @@ ModalStack 的结构是 `fixed inset-0 z-[1000+i]` 包裹「`absolute` 遮罩 + 
 
 图标统一 `@iconify-react/material-symbols/xxx`(常规字重,非 light)。直接 import 组件用,如 `import AddIcon from '@iconify-react/material-symbols/add'`。
 
+### 9. 小屏(<lg)响应式折叠布局
+
+小屏默认只显示绘图区域:指标栏 / 画线栏 / 自选栏通通收起,由底部 `mobile/MobileActionBar`(仅 `lg:hidden` 显示)展开对应浮层。约定:
+- **DrawToolbar / Sidebar 用「单实例包装」**:外层 div 在 `hidden lg:flex`(收起)与 `absolute ... z-30 flex lg:static lg:z-auto`(展开)间切换,桌面端恒为 inline 常驻。**不要**把 `hidden` 与 `flex` 同时加到同一元素(Tailwind display 生成顺序不可控)。
+- **IndicatorBar 是双实例**:TopBar 内 `hidden min-w-0 flex-1 lg:flex`(桌面常驻),App 内移动端浮层另渲染一份(顶部条覆盖图表),同一 props。
+- 浮层背景 `absolute inset-0 z-20 bg-black/40 lg:hidden` 点击关闭;面板 `z-30` 在其上;行容器需 `relative`。
+- 断点统一 `lg`(1024px);新增移动端控件一律 `lg:hidden`,桌面增强一律 `hidden lg:*`。
+
 ## 交互与约定
 
 - 顶部指标栏:常显全部指标,点击名称开关,激活项文字 `text-accent` + 底部短 bar `bg-accent`;内容超宽时隐藏滚动条、**鼠标滚轮横向平滑滚动**(rAF 缓动,仅横向可滚动时接管,不挡页面纵向滚动);末尾「+自定义指标」固定不动;用户公式指标全部追加在末尾(含未激活,激活态 = `config.custom[id].enabled`),点击名称仅切换激活,移除在设置弹窗。
 - 画线工具栏激活态:`bg-{color}/20 text-{color}`(价格线/线段=黄、矩形/测量=青、斐波那契=紫、垂直线=ink、文本/操作线=accent)。
-- 布局:左侧 DrawToolbar + 中间 `.chart-wrap`(含 KLineChart 与图表浮层)+ 右侧 Sidebar;顶栏三区。
+- 布局:左侧 DrawToolbar + 中间 `.chart-wrap`(含 KLineChart 与图表浮层)+ 右侧 Sidebar;顶栏三区。**小屏(<lg)响应式折叠**:指标栏/画线栏/自选栏默认收起,只显示绘图区域;底部 `mobile/MobileActionBar` 展开对应浮层(DrawToolbar 左浮层 / Sidebar 右浮层 / IndicatorBar 顶部条),点击背景关闭;桌面端(lg+)布局不变。
 - 自选/浏览数据来自 `src/data/stocks.ts`,自选列表持久化 `mp_watchlist`,设置持久化 `mp_settings`。
 
 ## 文件要点
 
-- `App.tsx` — 编排:股票/周期/自选/设置状态、`indicatorConfig` 默认值、9 种画线模式互斥(`clearDrawingModes`,开启任一工具复位其余)、错误横幅、TopBar/DrawToolbar/KLineChart/Sidebar 装配、ModalProvider 包裹。
+- `App.tsx` — 编排:股票/周期/自选/设置状态、`indicatorConfig` 默认值、9 种画线模式互斥(`clearDrawingModes`,开启任一工具复位其余)、错误横幅、TopBar/DrawToolbar/KLineChart/Sidebar 装配、ModalProvider 包裹;移动端浮层:`mobilePanel` 状态 + DrawToolbar/Sidebar 单实例响应式包装 + IndicatorBar 顶部浮层 + 背景关闭 + 底部 `MobileActionBar`。
+- `mobile/MobileActionBar.tsx` — 移动端底部操作栏(仅 `lg:hidden` 显示):指标/画线/自选 三个开关按钮,点击展开/收起对应浮层面板(`MobilePanel` 类型)。
 - `topbar/TopBar.tsx` — 顶栏三区布局(左周期 / 中指标栏 / 右搜索+设置)。
 - `topbar/StockSearch.tsx` — 股票搜索输入(回车触发,代码规范化交给 `src/api/stock.ts` 的 `normalizeCode`)。
 - `topbar/PeriodSwitcher.tsx` — 日/周/月周期切换。

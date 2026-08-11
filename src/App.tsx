@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import HomeIcon from '@iconify-react/material-symbols/home'
 import { fetchKline, fetchOlderKline, normalizeCode, PERIOD_LABEL, type KlinePeriod } from './api/stock'
 import { DrawToolbar } from './components/DrawToolbar'
+import { IndicatorBar } from './components/IndicatorBar'
 import { KLineChart } from './components/KLineChart'
 import type { LineType } from './drawing/LinePrimitive'
 import { drawingStorageKey } from './drawing/persistence'
@@ -9,6 +10,7 @@ import { Sidebar, type SidebarTab } from './components/Sidebar'
 import { TopBar } from './components/topbar/TopBar'
 import { DEFAULT_SETTINGS, SettingsDialog, type UserSettings } from './components/topbar/SettingsDialog'
 import { useModal } from './components/modal/ModalProvider'
+import { MobileActionBar, type MobilePanel } from './components/mobile/MobileActionBar'
 import {
   loadUserFormulas,
   registerUserFormula,
@@ -143,6 +145,8 @@ export default function App() {
   const [backSignal, setBackSignal] = useState(0)
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>('watch')
   const [watchlist, setWatchlist] = useState<string[]>(loadWatchlist)
+  /** 移动端浮层面板:指标/画线/自选(小屏默认收起,经底部操作栏展开;lg+ 不参与布局) */
+  const [mobilePanel, setMobilePanel] = useState<MobilePanel>('none')
 
   const [settings, setSettings] = useState<UserSettings>(loadSettings)
   const [period, setPeriod] = useState<KlinePeriod>(settings.defaultPeriod)
@@ -314,84 +318,87 @@ export default function App() {
         onOpenSettings={openSettings}
       />
 
-      <div className="flex min-h-0 flex-1 gap-1.5">
-        <DrawToolbar
-          drawingEnabled={drawingEnabled}
-          fibonacciEnabled={fibonacciEnabled}
-          lineTool={lineTool}
-          actionEnabled={actionEnabled}
-          rectEnabled={rectEnabled}
-          measureEnabled={measureEnabled}
-          fibExtEnabled={fibExtEnabled}
-          verticalEnabled={verticalEnabled}
-          textEnabled={textEnabled}
-          onToggleDrawing={() => {
-            if (drawingEnabled) setDrawingEnabled(false)
-            else {
-              clearDrawingModes()
-              setDrawingEnabled(true)
-            }
-          }}
-          onToggleFibonacci={() => {
-            if (fibonacciEnabled) setFibonacciEnabled(false)
-            else {
-              clearDrawingModes()
-              setFibonacciEnabled(true)
-            }
-          }}
-          onLineTool={(t) => {
-            if (lineTool === t) setLineTool(null)
-            else {
-              clearDrawingModes()
-              setLineTool(t)
-            }
-          }}
-          onToggleAction={() => {
-            if (actionEnabled) setActionEnabled(false)
-            else {
-              clearDrawingModes()
-              setActionEnabled(true)
-            }
-          }}
-          onToggleRect={() => {
-            if (rectEnabled) setRectEnabled(false)
-            else {
-              clearDrawingModes()
-              setRectEnabled(true)
-            }
-          }}
-          onToggleMeasure={() => {
-            if (measureEnabled) setMeasureEnabled(false)
-            else {
-              clearDrawingModes()
-              setMeasureEnabled(true)
-            }
-          }}
-          onToggleFibExt={() => {
-            if (fibExtEnabled) setFibExtEnabled(false)
-            else {
-              clearDrawingModes()
-              setFibExtEnabled(true)
-            }
-          }}
-          onToggleVertical={() => {
-            if (verticalEnabled) setVerticalEnabled(false)
-            else {
-              clearDrawingModes()
-              setVerticalEnabled(true)
-            }
-          }}
-          onToggleText={() => {
-            if (textEnabled) setTextEnabled(false)
-            else {
-              clearDrawingModes()
-              setTextEnabled(true)
-            }
-          }}
-          onClear={() => setClearSignal((s) => s + 1)}
-          onSimulateUp={() => simulateMove('up')}
-          onSimulateDown={() => simulateMove('down')}
-        />
+      <div className="relative flex min-h-0 flex-1 gap-1.5">
+        {/* 画线工具栏:lg+ 常驻左侧;小屏默认收起,经底部「画线」浮层展开 */}
+        <div className={mobilePanel === 'draw' ? 'absolute inset-y-0 left-0 z-30 flex flex-none lg:static lg:z-auto' : 'hidden flex-none lg:flex'}>
+          <DrawToolbar
+            drawingEnabled={drawingEnabled}
+            fibonacciEnabled={fibonacciEnabled}
+            lineTool={lineTool}
+            actionEnabled={actionEnabled}
+            rectEnabled={rectEnabled}
+            measureEnabled={measureEnabled}
+            fibExtEnabled={fibExtEnabled}
+            verticalEnabled={verticalEnabled}
+            textEnabled={textEnabled}
+            onToggleDrawing={() => {
+              if (drawingEnabled) setDrawingEnabled(false)
+              else {
+                clearDrawingModes()
+                setDrawingEnabled(true)
+              }
+            }}
+            onToggleFibonacci={() => {
+              if (fibonacciEnabled) setFibonacciEnabled(false)
+              else {
+                clearDrawingModes()
+                setFibonacciEnabled(true)
+              }
+            }}
+            onLineTool={(t) => {
+              if (lineTool === t) setLineTool(null)
+              else {
+                clearDrawingModes()
+                setLineTool(t)
+              }
+            }}
+            onToggleAction={() => {
+              if (actionEnabled) setActionEnabled(false)
+              else {
+                clearDrawingModes()
+                setActionEnabled(true)
+              }
+            }}
+            onToggleRect={() => {
+              if (rectEnabled) setRectEnabled(false)
+              else {
+                clearDrawingModes()
+                setRectEnabled(true)
+              }
+            }}
+            onToggleMeasure={() => {
+              if (measureEnabled) setMeasureEnabled(false)
+              else {
+                clearDrawingModes()
+                setMeasureEnabled(true)
+              }
+            }}
+            onToggleFibExt={() => {
+              if (fibExtEnabled) setFibExtEnabled(false)
+              else {
+                clearDrawingModes()
+                setFibExtEnabled(true)
+              }
+            }}
+            onToggleVertical={() => {
+              if (verticalEnabled) setVerticalEnabled(false)
+              else {
+                clearDrawingModes()
+                setVerticalEnabled(true)
+              }
+            }}
+            onToggleText={() => {
+              if (textEnabled) setTextEnabled(false)
+              else {
+                clearDrawingModes()
+                setTextEnabled(true)
+              }
+            }}
+            onClear={() => setClearSignal((s) => s + 1)}
+            onSimulateUp={() => simulateMove('up')}
+            onSimulateDown={() => simulateMove('down')}
+          />
+        </div>
 
         <div className="chart-wrap relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-t-lg bg-panel2">
           <KLineChart
@@ -452,15 +459,42 @@ export default function App() {
           )}
         </div>
 
-        <Sidebar
-          tab={sidebarTab}
-          onTabChange={setSidebarTab}
-          watchlist={watchlist}
-          onAdd={addToWatchlist}
-          onRemove={removeFromWatchlist}
-          onSelect={search}
-        />
+        {/* 自选侧栏:lg+ 常驻右侧;小屏默认收起,经底部「自选」浮层展开 */}
+        <div className={mobilePanel === 'watch' ? 'absolute inset-y-0 right-0 z-30 flex flex-none lg:static lg:z-auto' : 'hidden flex-none lg:flex'}>
+          <Sidebar
+            tab={sidebarTab}
+            onTabChange={setSidebarTab}
+            watchlist={watchlist}
+            onAdd={addToWatchlist}
+            onRemove={removeFromWatchlist}
+            onSelect={(c) => {
+              search(c)
+              setMobilePanel('none')
+            }}
+          />
+        </div>
+
+        {/* 移动端指标栏浮层:覆盖在图表顶部(小屏) */}
+        {mobilePanel === 'indicators' && (
+          <div className="absolute inset-x-0 top-0 z-30 flex border-b border-border bg-panel px-2 py-1.5 lg:hidden">
+            <IndicatorBar
+              config={indicatorConfig}
+              onChange={setIndicatorConfig}
+              onApplyUserFormula={applyUserFormula}
+              onDeleteUserFormula={deleteUserFormula}
+              bars={bars}
+            />
+          </div>
+        )}
+
+        {/* 移动端浮层背景:点击关闭 */}
+        {mobilePanel !== 'none' && (
+          <div className="absolute inset-0 z-20 bg-black/40 lg:hidden" onClick={() => setMobilePanel('none')} />
+        )}
       </div>
+
+      {/* 移动端底部操作栏:指标/画线/自选 入口(小屏默认收起) */}
+      <MobileActionBar panel={mobilePanel} onChange={setMobilePanel} />
     </div>
   )
 }

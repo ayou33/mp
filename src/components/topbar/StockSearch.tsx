@@ -23,7 +23,7 @@ export function StockSearch({ defaultValue, onSearch }: StockSearchProps) {
   return (
     <form className="ml-auto" onSubmit={handleSubmit}>
       <input
-        className="h-8 w-44 rounded border-none bg-input px-3 text-sm text-ink uppercase outline-none"
+        className="h-8 w-24 rounded border-none bg-input px-3 text-sm text-ink uppercase outline-none lg:w-44"
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder="代码 如 600519"

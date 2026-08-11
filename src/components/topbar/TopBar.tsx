@@ -39,15 +39,18 @@ export function TopBar({
   onOpenSettings,
 }: TopBarProps) {
   return (
-    <div className="flex items-center gap-4 bg-panel px-4 py-2">
+    <div className="flex items-center gap-2 bg-panel px-2 py-1.5 lg:gap-4 lg:px-4 lg:py-2">
       <PeriodSwitcher period={period} onChange={onPeriodChange} />
-      <IndicatorBar
-        config={indicatorConfig}
-        onChange={onIndicatorConfigChange}
-        onApplyUserFormula={onApplyUserFormula}
-        onDeleteUserFormula={onDeleteUserFormula}
-        bars={bars}
-      />
+      {/* 指标栏:lg+ 常驻顶栏;小屏默认收起(经底部「指标」浮层展开) */}
+      <div className="hidden min-w-0 flex-1 lg:flex">
+        <IndicatorBar
+          config={indicatorConfig}
+          onChange={onIndicatorConfigChange}
+          onApplyUserFormula={onApplyUserFormula}
+          onDeleteUserFormula={onDeleteUserFormula}
+          bars={bars}
+        />
+      </div>
       <StockSearch defaultValue={searchDefault} onSearch={onSearch} />
       <SettingsButton onClick={onOpenSettings} />
     </div>
