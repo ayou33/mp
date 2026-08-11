@@ -153,3 +153,17 @@ export function calcBuiltinIndicator(
   for (const p of params) map[p.key] = p.value
   return def.calc(bars, map)
 }
+
+// ===== 公开导出:bars 级 calc 纯函数(web/backend 共用) =====
+export { calcMA } from './ma'
+export { calcEMA } from './ema'
+export { BBI_PERIODS, calcBBI } from './bbi'
+export { calcBOLL } from './boll'
+export { calcRSI } from './rsi'
+export { calcMACD, type MacdSeriesData, type MacdBarPoint } from './macd'
+export { calcKDJ, type KdjSeriesData } from './kdj'
+export { calcWR } from './wr'
+export { calcCCI } from './cci'
+export { calcOBV } from './obv'
+export { calcATR } from './atr'
+export { calcDMI, type DmiResult } from './dmi'

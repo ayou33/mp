@@ -1,8 +1,7 @@
 import type { IChartApi, MouseEventParams, Time } from 'lightweight-charts'
 import type { KlineBar } from '../../types'
 import { CustomIndicatorInstance } from './CustomIndicatorInstance'
-import { CUSTOM_INDICATORS } from './registry'
-import type { CustomIndicatorConfigEntry, CustomIndicatorDef } from './types'
+import { CUSTOM_INDICATORS, type CustomIndicatorConfigEntry, type CustomIndicatorDef } from '@mp/shared'
 
 /** 图例条目(与 IndicatorController.IndicatorLegendEntry 同构) */
 export interface CustomLegendEntry {

@@ -33,12 +33,9 @@ import {
   RSI_DEF,
   WR_DEF,
 } from './subCharts'
-import { calcBBI } from './bbi'
-import { calcMA } from './ma'
-import { calcEMA } from './ema'
-import { calcBOLL } from './boll'
+import { calcBBI, calcMA, calcEMA, calcBOLL } from '@mp/shared'
 import { CustomIndicatorManager } from './custom/CustomIndicatorManager'
-import type { CustomIndicatorConfigEntry } from './custom/types'
+import type { CustomIndicatorConfigEntry } from '@mp/shared'
 
 /** 内置指标 id(主图 + 副图);lineStyles 按此分组 */
 export type IndicatorId =

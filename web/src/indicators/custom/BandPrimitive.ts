@@ -10,7 +10,7 @@ import type {
   Time,
 } from 'lightweight-charts'
 import type { IndicatorPoint } from '../../types'
-import { hexToRgba } from './lib'
+import { hexToRgba } from '@mp/shared'
 
 /** 区间填充的状态(就地更新:primitive 捕获此对象引用,只能改属性,不能整体替换) */
 export interface BandState {

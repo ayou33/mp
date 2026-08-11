@@ -1,12 +1,5 @@
 import type { SubChartIndicatorDef } from './SubChartIndicator'
-import { calcKDJ } from './kdj'
-import { calcMACD } from './macd'
-import { calcRSI } from './rsi'
-import { calcWR } from './wr'
-import { calcCCI } from './cci'
-import { calcOBV } from './obv'
-import { calcATR } from './atr'
-import { calcDMI } from './dmi'
+import { calcKDJ, calcMACD, calcRSI, calcWR, calcCCI, calcOBV, calcATR, calcDMI } from '@mp/shared'
 
 const RSI_COLOR = '#b685f0'
 const MACD_HIST_COLOR = '#f23645'

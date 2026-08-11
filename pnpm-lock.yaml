@@ -53,6 +53,9 @@ importers:
       '@iconify-react/material-symbols':
         specifier: ^1.0.30
         version: 1.0.30(react@19.2.8)
+      '@mp/shared':
+        specifier: workspace:*
+        version: link:../shared
       fancy-canvas:
         specifier: ^2.1.0
         version: 2.1.0

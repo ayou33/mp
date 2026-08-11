@@ -17,4 +17,4 @@ pnpm --filter @mp/shared build   # tsup → dist(ESM + d.ts)
 
 ## 说明
 
-当前 `web/` 仍保留自身指标/公式副本(本轮未迁移);后续按实施分期把 web 切到本包,避免双实现漂移。
+web 已切换到本包(2026-08):`web/src/indicators` 与 `custom` 的纯计算/公式引擎文件已删除,只保留渲染/UI/localStorage 持久化;`web/` 通过 `@mp/shared`(dist)消费,与 backend 单一实现。

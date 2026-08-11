@@ -1,6 +1,4 @@
-import { defineIndicator } from './defineIndicator'
-import { CUSTOM_INDICATORS } from './registry'
-import type { CustomOutput } from './types'
+import { defineIndicator, CUSTOM_INDICATORS, type CustomOutput } from '@mp/shared'
 
 /**
  * 演示自定义指标:展示框架能力的参考实现(供开发者参考;不参与顶栏/弹窗 UI)。

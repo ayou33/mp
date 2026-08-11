@@ -1,21 +1,28 @@
 /**
- * 指标子系统统一导出:bars 级常用指标纯函数(自定义指标可经此引用)+ 自定义指标框架。
- * 约定:所有 calcX 均为纯函数,输入 bars + 参数,输出 IndicatorPoint[] 或 {dif,dea,macd} 等复合结构。
+ * 指标子系统统一导出:bars 级常用指标纯函数 + 自定义指标框架。
+ * 纯计算/公式引擎已迁移到 @mp/shared(单一实现),此处仅做兼容转发。
  */
-export { calcMA } from './ma'
-export { calcEMA } from './ema'
-export { BBI_PERIODS, calcBBI } from './bbi'
-export { calcBOLL } from './boll'
-export { calcRSI } from './rsi'
-export { calcMACD, type MacdSeriesData, type MacdBarPoint } from './macd'
-export { calcKDJ, type KdjSeriesData } from './kdj'
-export { calcWR } from './wr'
-export { calcCCI } from './cci'
-export { calcOBV } from './obv'
-export { calcATR } from './atr'
-export { calcDMI, type DmiResult } from './dmi'
+export {
+  calcMA,
+  calcEMA,
+  BBI_PERIODS,
+  calcBBI,
+  calcBOLL,
+  calcRSI,
+  calcMACD,
+  type MacdSeriesData,
+  type MacdBarPoint,
+  calcKDJ,
+  type KdjSeriesData,
+  calcWR,
+  calcCCI,
+  calcOBV,
+  calcATR,
+  calcDMI,
+  type DmiResult,
+} from '@mp/shared'
 
-// 自定义指标框架
+// 自定义指标框架(引擎来自 @mp/shared,渲染/持久化仍在 web)
 export {
   defineIndicator,
   CUSTOM_INDICATORS,
@@ -29,5 +36,18 @@ export {
   type CustomParamSpec,
   type CustomOutputMeta,
   type CustomCandlePoint,
-} from './custom'
-export { sma, ema, stddev, sum, hhv, llv, wilder, ref, abs, max, min, crossOver, crossUnder, hexToRgba } from './custom/lib'
+  sma,
+  ema,
+  stddev,
+  sum,
+  hhv,
+  llv,
+  wilder,
+  ref,
+  abs,
+  max,
+  min,
+  crossOver,
+  crossUnder,
+  hexToRgba,
+} from '@mp/shared'

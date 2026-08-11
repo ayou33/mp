@@ -26,14 +26,14 @@ export function defaultParams(def: CustomIndicatorDef): CustomParamValues {
 }
 
 /** 解析用户配置参数:缺省用 def 默认,存在则钳制到合法范围;过滤掉 def 中不存在的 key */
-export function resolveParams(def: CustomIndicatorDef, user?: CustomParamValues): CustomParamValues {
+export function resolveParams(def: CustomIndicatorDef, user?: Record<string, unknown>): CustomParamValues {
   const base = defaultParams(def)
   if (!user) return base
   const specMap = new Map((def.params ?? []).map((s) => [s.key, s]))
   for (const [key, value] of Object.entries(user)) {
     const spec = specMap.get(key)
     if (!spec) continue
-    base[key] = clampParam(spec, value)
+    base[key] = clampParam(spec, value as number | string | number[])
   }
   return base
 }

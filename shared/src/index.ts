@@ -5,5 +5,27 @@
 export * from './types'
 export * from './stocks'
 export * from './drawing-types'
-export { BUILTIN_INDICATORS, calcBuiltinIndicator, type BuiltinIndicatorDef, type BuiltinParamSpec } from './indicators'
+export {
+  BUILTIN_INDICATORS,
+  calcBuiltinIndicator,
+  type BuiltinIndicatorDef,
+  type BuiltinParamSpec,
+  calcMA,
+  calcEMA,
+  BBI_PERIODS,
+  calcBBI,
+  calcBOLL,
+  calcRSI,
+  calcMACD,
+  type MacdSeriesData,
+  type MacdBarPoint,
+  calcKDJ,
+  type KdjSeriesData,
+  calcWR,
+  calcCCI,
+  calcOBV,
+  calcATR,
+  calcDMI,
+  type DmiResult,
+} from './indicators'
 export * from './indicators/custom'

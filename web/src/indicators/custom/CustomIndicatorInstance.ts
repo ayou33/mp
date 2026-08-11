@@ -22,9 +22,7 @@ import type { IndicatorPoint, KlineBar } from '../../types'
 import { IndicatorAxisPrimitive, PaneLabelPrimitive, type IndicatorAxisState, type PaneLabelState } from '../IndicatorAxis'
 import { mergeLineStyle, type IndicatorLineStyle } from '../SubChartIndicator'
 import { BandPrimitive, type BandState } from './BandPrimitive'
-import { createCalcContext } from './calcContext'
-import { resolveParams } from './defineIndicator'
-import type { CustomIndicatorConfigEntry, CustomIndicatorDef, CustomOutput, CustomParamValues, CustomScale } from './types'
+import { createCalcContext, resolveParams, type CustomIndicatorConfigEntry, type CustomIndicatorDef, type CustomOutput, type CustomParamValues, type CustomScale } from '@mp/shared'
 
 /** 副图 pane 相对主图的拉伸系数(与内置副图一致) */
 const SUB_CHART_STRETCH = 0.5
@@ -53,7 +51,7 @@ function effectiveScale(
   config: CustomIndicatorConfigEntry,
   outputKey: string,
 ): CustomScale {
-  return config.scales?.[outputKey] ?? def.outputs.find((o) => o.key === outputKey)?.scale ?? { kind: 'right' }
+  return (config.scales?.[outputKey] as CustomScale | undefined) ?? def.outputs.find((o) => o.key === outputKey)?.scale ?? { kind: 'right' }
 }
 
 /**
@@ -98,7 +96,7 @@ export class CustomIndicatorInstance {
     for (const meta of ordered) {
       // visible=false 的输出不渲染(不建 series/图例/轴标签),但仍参与求值可被引用
       if (meta.visible === false) continue
-      const style = mergeLineStyle(config.lineStyles[meta.key], {
+      const style = mergeLineStyle(config.lineStyles[meta.key] as IndicatorLineStyle | undefined, {
         color: meta.color ?? '#d1d4dc',
         width: meta.width,
         style: meta.style,

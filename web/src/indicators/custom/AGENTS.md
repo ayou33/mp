@@ -11,23 +11,14 @@
 
 ```
 src/indicators/custom/
-  lib.ts                      值级纯函数库:入参/返回都是 (number|null)[] = NumArr
-                              sma/ema/stddev/sum/hhv/llv/wilder/ref/abs/max/min/crossOver/crossUnder/hexToRgba
-  types.ts                    CustomIndicatorDef / CustomParamSpec / CustomOutput(7 形态) / CustomScale
-                              / CalcContext / CustomIndicatorConfigEntry
-  defineIndicator.ts          工厂:校验 id/params/outputs keys 合法、defaultParams/resolveParams 解析钳制
-  formula.ts                  公式 DSL:注释剥离 → tokenize → 递归下降解析(算术/比较/逻辑 AND OR NOT/IF/指标引用)
-                              → evaluateNode/evaluateFormula 求值;FormulaError(带位置) + FORMULA_FIELDS/FORMULA_FUNCS 帮助清单
-                              parseFormulaScript(多语句脚本,含单冒号输出与 STICKLINE 裸语句)→ evaluateFormulaScript(变量引用求值,标量变量保留数字语义)
-                              ;parseFormulaExpr(允许变量引用的单表达式,供脚本 band 下轨)
-  formulaIndicator.ts         公式 → CustomIndicatorDef:defineFormulaIndicator(spec) 缓存 AST;`NAME := EXPR` 私有变量只计算不渲染;outputSpecs 支持 label/scale/visible(显示名/独立轴/可见性)
-FormulaShape / FormulaOutputSpec;FORMULA_PALETTE 脚本各线取色;outputSpecs 决定脚本各输出形态 + 行尾样式
-userFormulas.ts             用户公式记录注册表:localStorage mp_custom_formulas 持久化(outputSpecs 脚本各输出形态 + 行尾样式),
-                              registerUserFormula/unregisterUserFormula/loadUserFormulas/saveUserFormulas
-  formulaTest.ts              公式测试引擎:runFormulaTest 编译(defineFormulaIndicator)+ 对真实/合成样例 K 线跑 def.calc,
-                              逐输出统计有效点数/min/max/最新值,返回编译/运行错误与空输出警告;createSampleBars 确定性合成样例
-  calcContext.ts              构造 CalcContext:注入 bars 字段序列、值函数库、bars 级常用指标包装
-                              (ma/emaBar/macd/rsi/boll/kdj 复用 calcX)、ctx.points(values) 对齐时间
+  公式 DSL 引擎(lib/types/defineIndicator/formula/formulaIndicator/formulaTest/calcContext)已在 `@mp/shared`,web 经 `index.ts` 桶转发导入;本目录只保留渲染与持久化:
+  index.ts                     公共导出:转发 `@mp/shared` 引擎 + 导出下方 web 独有文件(import './demos' 副作用注册)
+  userFormulas.ts              用户公式记录注册表:localStorage mp_custom_formulas 持久化(outputSpecs 脚本各输出形态 + 行尾样式),
+                                registerUserFormula/unregisterUserFormula/loadUserFormulas/saveUserFormulas
+  demos.ts                     演示指标注册(defineIndicator + CUSTOM_INDICATORS,不参与顶栏 UI)
+  BandPrimitive.ts             区间填充 primitive(自研,附在 band 上轨 series)
+  CustomIndicatorInstance.ts   渲染器:按 Output.type 建 series(6 种 series + band)+ 轴标签/角标 + 十字光标/图例
+  CustomIndicatorManager.ts    注册表 CUSTOM_INDICATORS + 实例生命周期 + 挂载位置编排 + pane 基数 + 多轴管理;缓存最近 bars,重建后回填数据
   BandPrimitive.ts            区间填充 primitive(自研,附在 band 上轨 series)
   CustomIndicatorInstance.ts  渲染器:按 Output.type 建 series(6 种 series + band)+ 轴标签/角标 + 十字光标/图例
   CustomIndicatorManager.ts   注册表 CUSTOM_INDICATORS + 实例生命周期 + 挂载位置编排 + pane 基数 + 多轴管理;缓存最近 bars,重建后回填数据

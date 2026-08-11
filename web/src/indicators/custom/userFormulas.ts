@@ -4,9 +4,7 @@
  * 展示顺序 = USER_FORMULA_RECORDS 插入顺序。
  */
 
-import { defineFormulaIndicator, type FormulaOutputSpec, type FormulaShape } from './formulaIndicator'
-import { CUSTOM_INDICATORS } from './registry'
-import type { CustomIndicatorDef } from './types'
+import { defineFormulaIndicator, CUSTOM_INDICATORS, type CustomIndicatorDef, type FormulaOutputSpec, type FormulaShape } from '@mp/shared'
 
 /** 用户公式指标记录(持久化;注册时编译为 CustomIndicatorDef) */
 export interface UserFormulaRecord {

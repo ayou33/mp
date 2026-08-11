@@ -72,7 +72,7 @@ export function initLineScales(
   for (const n of formulaLineNames(existing?.formula ?? '')) {
     const fromSpec = existing?.outputSpecs?.[n]?.scale?.kind
     if (fromSpec === 'independent' || fromSpec === 'right') out[n] = fromSpec
-    else if (entry?.scales?.[n]?.kind === 'independent') out[n] = 'independent'
+    else if ((entry?.scales?.[n] as { kind?: string } | undefined)?.kind === 'independent') out[n] = 'independent'
   }
   return out
 }
