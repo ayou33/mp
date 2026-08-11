@@ -284,7 +284,7 @@ export default function App() {
     open({
       title: '设置',
       content: (api) => (
-        <SettingsDialog initial={settings} onSave={setSettings} onClose={api.close} />
+        <SettingsDialog initial={settings} onSave={setSettings} onDeleteCustomFormula={deleteUserFormula} onClose={api.close} />
       ),
     })
   }, [open, settings])

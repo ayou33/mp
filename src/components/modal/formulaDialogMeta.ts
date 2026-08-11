@@ -223,7 +223,7 @@ export function buildFormulaCommit(a: FormulaCommitArgs): { rec: UserFormulaReco
     ...(spec.outputSpecs ? { outputSpecs: spec.outputSpecs } : {}),
   }
   const entryNext: CustomIndicatorConfigEntry = {
-    enabled: a.entry?.enabled ?? true,
+    enabled: a.entry?.enabled ?? false,
     pane: a.pane,
     params: {},
     // 样式唯一来源是行尾声明:清空历史面板覆盖,避免隐藏覆盖残留

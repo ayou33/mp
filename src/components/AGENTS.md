@@ -10,7 +10,7 @@ App.tsx 编排:股票/周期/设置/自选状态、9 种画线模式互斥、指
   │     ├─ PeriodSwitcher 周期切换(日/周/月)
   │     ├─ StockSearch    股票搜索(回车触发,规范化在 src/api/stock.ts)
   │     └─ SettingsDialog 设置弹窗(UserSettings 持久化 mp_settings)
-  ├─ IndicatorBar.tsx 指标栏:常显全部指标、激活蓝字+底部短bar、滚轮平滑横向滚动、+自定义指标
+  ├─ IndicatorBar.tsx 指标栏:常显全部指标、激活蓝字+底部短bar、滚轮平滑横向滚动、+自定义指标(用户公式全部追加末尾,点击切换激活,移除在设置弹窗)
   ├─ DrawToolbar.tsx 左侧画线工具栏(9 种工具互斥开关 + 清除 + 底部「模拟」测试按钮)
   ├─ KLineChart.tsx 图表壳:createChart、数据更新、模式开关接线、非 React 控制器装配
   │     ├─ 图表浮层:DrawingContextMenu(画线左键菜单)/ range-select-overlay(操作线确认按钮为画布实现,见 drawing/AGENTS.md)
@@ -67,7 +67,7 @@ ModalStack 的结构是 `fixed inset-0 z-[1000+i]` 包裹「`absolute` 遮罩 + 
 
 ## 交互与约定
 
-- 顶部指标栏:常显全部指标,点击名称开关,激活项文字 `text-accent` + 底部短 bar `bg-accent`;内容超宽时隐藏滚动条、**鼠标滚轮横向平滑滚动**(rAF 缓动,仅横向可滚动时接管,不挡页面纵向滚动);末尾「+自定义指标」固定不动(自定义指标后端尚未实现,当前列出内置指标)。
+- 顶部指标栏:常显全部指标,点击名称开关,激活项文字 `text-accent` + 底部短 bar `bg-accent`;内容超宽时隐藏滚动条、**鼠标滚轮横向平滑滚动**(rAF 缓动,仅横向可滚动时接管,不挡页面纵向滚动);末尾「+自定义指标」固定不动;用户公式指标全部追加在末尾(含未激活,激活态 = `config.custom[id].enabled`),点击名称仅切换激活,移除在设置弹窗。
 - 画线工具栏激活态:`bg-{color}/20 text-{color}`(价格线/线段=黄、矩形/测量=青、斐波那契=紫、垂直线=ink、文本/操作线=accent)。
 - 布局:左侧 DrawToolbar + 中间 `.chart-wrap`(含 KLineChart 与图表浮层)+ 右侧 Sidebar;顶栏三区。
 - 自选/浏览数据来自 `src/data/stocks.ts`,自选列表持久化 `mp_watchlist`,设置持久化 `mp_settings`。
@@ -78,8 +78,8 @@ ModalStack 的结构是 `fixed inset-0 z-[1000+i]` 包裹「`absolute` 遮罩 + 
 - `topbar/TopBar.tsx` — 顶栏三区布局(左周期 / 中指标栏 / 右搜索+设置)。
 - `topbar/StockSearch.tsx` — 股票搜索输入(回车触发,代码规范化交给 `src/api/stock.ts` 的 `normalizeCode`)。
 - `topbar/PeriodSwitcher.tsx` — 日/周/月周期切换。
-- `topbar/SettingsButton.tsx` + `SettingsDialog.tsx` — 设置弹窗:`UserSettings`(默认周期/红涨绿跌/高低点标注样式),保存后由 App 持久化 `mp_settings`。
-- `IndicatorBar.tsx` — 指标栏:12 个指标元数据(单一数据源 `INDICATORS`,顶栏与添加弹窗共用)、常显全部、激活蓝字+底部短 bar、滚动区隐藏滚动条 + 滚轮平滑横向滚动、+自定义指标。
+- `topbar/SettingsButton.tsx` + `SettingsDialog.tsx` — 设置弹窗:`UserSettings`(默认周期/红涨绿跌/高低点标注样式),保存后由 App 持久化 `mp_settings`;另含「自定义指标」管理区:列出全部用户公式(从 `USER_FORMULA_RECORDS` 初始化,本地 state 维护即时移除,因弹窗内容闭包不随 App 重渲染刷新),每行「移除」按钮调 `onDeleteCustomFormula`。
+- `IndicatorBar.tsx` — 指标栏:12 个指标元数据(单一数据源 `INDICATORS`,顶栏与添加弹窗共用)、常显全部、激活蓝字+底部短 bar、滚动区隐藏滚动条 + 滚轮平滑横向滚动、+自定义指标;用户公式指标全部追加末尾(含未激活),激活态 = `config.custom[id].enabled`,点击切换,编辑弹窗可删。
 - `DrawToolbar.tsx` — 左侧画线工具栏:9 种工具互斥开关 + 清除 + 底部「模拟」区两个测试按钮(向上/向下跳动,`onSimulateUp`/`onSimulateDown` → App `simulateMove` 追加次日大涨/大跌 K 线驱动操作线触发);`act(color)` 辅助生成激活态类。
 - `KLineChart.tsx` — 图表壳:createChart(StrictMode 兼容)、Candlestick/Volume series、`DrawingTools`/`IndicatorController`/`HistoryLoader`/`VisibleRangeMark`/`CrosshairGainLabel` 装配、模式开关渲染期同步、右键框选/区间统计/操作线/文本标注弹窗接线、画线持久化(storageKey)、图表浮层渲染。操作线确认交互已下沉 drawing 层(画布按钮),无 React 确认浮层。
 - `Sidebar.tsx` — 右侧自选/浏览列表(自选可移除、浏览可加入),数据来自 `src/data/stocks.ts`。
@@ -92,7 +92,7 @@ ModalStack 的结构是 `fixed inset-0 z-[1000+i]` 包裹「`absolute` 遮罩 + 
 - `modal/FormulaOutputLines.tsx` — 公式多输出 UI 组装:`FormulaOutputLines`(每 NAME 一行 `FormulaOutputLineRow`)、`FormulaOutputSection`(多输出逐行配置,无全局 Y 轴)、`FormulaHelp`(字段/函数/脚本语法帮助);转发导出共享常量/控件。
 - `modal/FormulaOutputLineRow.tsx` — 单条输出编辑行:形态选择 + 显示名/Y轴/显示开关 + band 下轨/baseline 基准值 + 线样式。
 - `modal/formulaOutputShared.tsx` — 公式弹窗共享 UI:`SegmentedControl`(通用分段选择)、`SHAPE_OPTIONS`/`SCALE_OPTIONS`、`INPUT_CLS`/`TEXTAREA_CLS`。
-- `modal/formulaDialogMeta.ts` — 公式弹窗纯逻辑(非组件):`assembleFormulaSpec`(校验公式并组装 `FormulaIndicatorSpec`,保存与测试共用,失败抛 Error;不校验名称)/`buildFormulaCommit`(校验名称 + 构造记录/实例配置,失败抛 Error;脚本模式构造 `outputSpecs` 并校验 band 下轨/基线基准值/至少一条输出(含 STICKLINE);样式一律来自行尾声明,保存时清空 `lineStyles` 面板覆盖)`、`initLineShapes`/`initLineLower`/`initLineBase`/`initLineLabels`/`initLineScales`/`initLineVisible`/`formulaLineNames`(编辑模式恢复草稿;formulaLineNames 过滤 `:=` 私有变量与 STICKLINE 竖条)、`PANE_OPTIONS`;`SHAPE_OPTIONS`/`SCALE_OPTIONS`/`TEXTAREA_CLS`/`INPUT_CLS` 从 `FormulaOutputLines` 转发。
+- `modal/formulaDialogMeta.ts` — 公式弹窗纯逻辑(非组件):`assembleFormulaSpec`(校验公式并组装 `FormulaIndicatorSpec`,保存与测试共用,失败抛 Error;不校验名称)/`buildFormulaCommit`(校验名称 + 构造记录/实例配置,失败抛 Error;新指标默认 `enabled: false` 不激活,编辑保留原激活态;脚本模式构造 `outputSpecs` 并校验 band 下轨/基线基准值/至少一条输出(含 STICKLINE);样式一律来自行尾声明,保存时清空 `lineStyles` 面板覆盖)`、`initLineShapes`/`initLineLower`/`initLineBase`/`initLineLabels`/`initLineScales`/`initLineVisible`/`formulaLineNames`(编辑模式恢复草稿;formulaLineNames 过滤 `:=` 私有变量与 STICKLINE 竖条)、`PANE_OPTIONS`;`SHAPE_OPTIONS`/`SCALE_OPTIONS`/`TEXTAREA_CLS`/`INPUT_CLS` 从 `FormulaOutputLines` 转发。
 - `modal/FormulaTestArea.tsx` — 公式测试区(弹窗内):「测试」按钮(play-arrow)+ 结果面板;`buildSpec` 回调从弹窗状态组装公式定义,首次点击后随输入实时重跑;`bars` 为当前 K 线,缺省用合成样例。
 - `modal/FormulaTestPanel.tsx` — 公式测试结果面板:通过/未通过 + 编译/运行错误 + 每输出 有效点数/min/max/最新值 + 无数据警告。
 - `modal/useFormulaTest.ts` — 公式测试 hook(非 tsx):维护测试结果状态,首次请求后随 `deps` 变化自动重跑。

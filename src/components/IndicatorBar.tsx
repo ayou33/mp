@@ -175,8 +175,8 @@ export function IndicatorBar({ config, bars, onChange, onApplyUserFormula, onDel
     })
   }
 
-  // 只列出「用户手写公式」指标(demos.ts 内置示例不参与顶栏展示)
-  const customItems = Array.from(USER_FORMULA_RECORDS.values()).filter((rec) => config.custom[rec.id]?.enabled)
+  // 全部「用户手写公式」指标都显示在指标栏(demos.ts 内置示例不参与顶栏展示);激活态 = config.custom[id].enabled
+  const customItems = Array.from(USER_FORMULA_RECORDS.values())
 
   return (
     <div className="flex min-w-0 flex-1 items-center">
@@ -197,14 +197,14 @@ export function IndicatorBar({ config, bars, onChange, onApplyUserFormula, onDel
             </IndicatorItem>
           </Fragment>
         ))}
-        {/* 已启用的用户公式指标:追加在末尾,开关 + tune 编辑 */}
+        {/* 用户公式指标:全部追加在末尾(含未激活),点击名称切换激活;移除在设置弹窗 */}
         {customItems.length > 0 && (
           <>
             <span className="text-[#4c525e]">│</span>
             {customItems.map((rec, i) => (
               <Fragment key={rec.id}>
                 {i > 0 && <span className="text-[#4c525e]">│</span>}
-                <IndicatorItem active onClick={() => toggleCustom(rec.id)} onEdit={() => editCustom(rec.id)}>
+                <IndicatorItem active={!!config.custom[rec.id]?.enabled} onClick={() => toggleCustom(rec.id)} onEdit={() => editCustom(rec.id)}>
                   {rec.title}
                 </IndicatorItem>
               </Fragment>
