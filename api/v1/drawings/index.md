@@ -1,19 +1,21 @@
-# GET /api/v1/drawings · PUT /api/v1/drawings
+# GET /api/v1/drawings · PUT /api/v1/drawings · DELETE /api/v1/drawings
 
-画线数据(按 股票 + 周期 隔离,对齐 web 端 localStorage 持久化)。
+画线数据(按 股票 + 周期 隔离,对齐 web 端 `src/drawing/types.ts` 的 `SerializedDrawing`)。
 
-## GET
+## GET — 查询
 
 | 参数 | 位置 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- | --- |
 | `stock` | query | string | 是 | 规范化代码 |
-| `period` | query | KlinePeriod | 是 | 周期 |
+| `period` | query | KlinePeriod | 否 | 缺省 `day` |
+| `source` | query | `system`/`user` | 否 | 按归属过滤;缺省返回全部 |
 
-响应 200 `Drawing[]`(见 `common/types.md`):
+响应 200 `Drawing[]`:
 
 ```json
 [
-  { "id": "d_1", "kind": "price-line", "points": [{ "time": "2026-08-10", "price": 1450.0 }], "owner": "user" }
+  { "id": 1, "kind": "price-line", "source": "user", "price": 1450.0 },
+  { "id": 2, "kind": "action-line", "source": "system", "price": 1500.0, "action": "add", "status": "armed", "direction": "up" }
 ]
 ```
 
@@ -27,6 +29,19 @@
 
 响应 200 保存后的 `Drawing[]`(全量替换)。
 
+## DELETE — 删除
+
+支持两种:
+
+| 方式 | 请求 | 说明 |
+| --- | --- | --- |
+| 按条件批量 | `DELETE /drawings?stock=&period=&source=` | `stock`/`period` 必填,`source` 可选(缺省全部) |
+| 按 id 单个 | `DELETE /drawings/{id}?stock=&period=` | 删除单个画线对象 |
+
+响应 204。
+
 ## 说明
 
-- 画线对象分 `system`(如操作线确认状态)与 `user`(用户绘制),按 `owner` 区分;「清除」只清 user。
+- `source` 语义:`user`(用户交互创建,可修改/删除)与 `system`(程序生成、无用户交互,用户不可修改/删除;系统可操作一切)。
+- **级联删除**:删除自选时,该股全部画线对象(`system` + `user`)一并删除,见 `watchlist/{code}.md`。
+- 画线类型目录见 [`types.md`](types.md)。

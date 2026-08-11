@@ -20,3 +20,5 @@
 ## DELETE — 移出自选
 
 响应 204(无 body);不存在也返回 204(幂等)。
+
+**级联删除**:移除自选的同时,删除该股 `{code}` 全部周期下的**所有画线对象**(`system` + `user`),见 [`drawings/index.md`](../drawings/index.md)。

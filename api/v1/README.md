@@ -23,7 +23,8 @@ Base:`/api/v1`;内容类型 `application/json`;错误结构见 `common/error.md`
 | --- | --- | --- |
 | GET | `/watchlist` | [`watchlist/index.md`](watchlist/index.md) |
 | PUT | `/watchlist/{code}` | [`watchlist/{code}.md`](watchlist/{code}.md) |
-| DELETE | `/watchlist/{code}` | [`watchlist/{code}.md`](watchlist/{code}.md) |
+| DELETE | `/watchlist/{code}` | [`watchlist/{code}.md`](watchlist/{code}.md)(级联删画线) |
+| GET / DELETE | `/watchlist/drawings` | [`watchlist/drawings.md`](watchlist/drawings.md)(自选股画线,缺省系统类型) |
 | GET | `/browse-history` | [`browse-history/index.md`](browse-history/index.md) |
 | POST | `/browse-history` | [`browse-history/record.md`](browse-history/record.md) |
 
@@ -41,4 +42,6 @@ Base:`/api/v1`;内容类型 `application/json`;错误结构见 `common/error.md`
 | --- | --- | --- |
 | GET / PUT | `/indicator-config` | [`indicator-config/index.md`](indicator-config/index.md) |
 | GET / PUT | `/settings` | [`settings/index.md`](settings/index.md) |
-| GET / PUT | `/drawings` | [`drawings/index.md`](drawings/index.md) |
+| GET / PUT / DELETE | `/drawings` | [`drawings/index.md`](drawings/index.md)(GET 可过滤 source) |
+| DELETE | `/drawings/{id}` | [`drawings/index.md`](drawings/index.md) |
+| GET | `/drawings/types` | [`drawings/types.md`](drawings/types.md)(画线类型 + 操作方法) |

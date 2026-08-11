@@ -159,14 +159,40 @@ interface UserSettings {
   highLowStyle: 'leader' | 'price-line'
 }
 
+type DrawingKind =
+  | 'line' | 'fib' | 'price-line' | 'action-line' | 'rect' | 'text'
+  | 'vertical-line' | 'fib-ext' | 'measure'
+
+type DrawingSource = 'system' | 'user'
+// user:用户界面交互创建,可修改/删除;system:程序生成、无用户交互,用户不可修改/删除
+
+interface AnchorPoint { time: string; price: number }
+
 interface Drawing {
-  id: string
-  kind: string            // 画线类型(价格线/线段/射线/直线/矩形/测量/斐波那契/垂直线/文本/操作线)
-  points: unknown[]       // 各工具私有几何数据(对齐 web/src/drawing/types.ts)
-  owner: 'system' | 'user'
-  [k: string]: unknown
+  id: number
+  kind: DrawingKind
+  source: DrawingSource                  // 归属(缺省 'user')
+  lineType?: 'segment' | 'ray' | 'straight' // kind='line'
+  p1?: AnchorPoint; p2?: AnchorPoint; p3?: AnchorPoint
+  text?: string                          // kind='text'
+  time?: string                          // kind='vertical-line'
+  price?: number                         // kind='price-line' | 'action-line'(目标价)
+  action?: 'open' | 'add' | 'reduce' | 'close' // kind='action-line'
+  status?: 'armed' | 'triggered' | 'executed' | 'violated'
+  direction?: 'up' | 'down'
+  createdAt?: string                     // 操作线创建时最新 bar 时间
 }
+
 interface DrawingsPayload { stock: string; period: KlinePeriod; items: Drawing[] }
+
+/** 画线类型目录(系统支持的画线类型 + 操作方法) */
+interface DrawingTypeInfo {
+  id: DrawingKind
+  name: string
+  description: string
+  ops: { place: string; edit: string; clear: string }
+  defaultSource: DrawingSource
+}
 ```
 
 ## 通用

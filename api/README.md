@@ -41,7 +41,7 @@ graph LR
 
 - 当前设计版本:`v1`(端点索引见 `v1/README.md`)。
 - 鉴权:`v1/common/auth.md`;错误结构:`v1/common/error.md`;分页:`v1/common/pagination.md`;全部类型:`v1/common/types.md`。
-- MCP 工具定义:`mcp.md`。
+- MCP 工具定义:`mcp.md`(主服务:自选管理(删除级联清画线)/ 画线类型与操作方法目录 / 自选股系统类型画线对象查询管理)。
 
 ## 实施分期
 
