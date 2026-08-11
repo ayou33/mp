@@ -29,6 +29,8 @@ export class CustomIndicatorManager {
   private _paneBase = 1
   private _lastSig: string | null = null
   private _instances = new Map<string, CustomIndicatorInstance>()
+  /** 最近一次数据(实例重建后回填;否则配置/激活变化触发重建时新实例无数据不显示) */
+  private _bars: KlineBar[] = []
 
   constructor(chart: IChartApi) {
     this._chart = chart
@@ -60,8 +62,9 @@ export class CustomIndicatorManager {
     this._rebuildIfNeeded()
   }
 
-  /** 数据更新:分发到各实例 */
+  /** 数据更新:缓存后分发到各实例(重建回填用) */
   update(bars: KlineBar[]): void {
+    this._bars = bars
     for (const inst of this._instances.values()) inst.update(bars)
   }
 
@@ -99,6 +102,12 @@ export class CustomIndicatorManager {
       if (!entry || !entry.enabled) continue
       const paneIndex = entry.pane === 'sub' ? this._paneBase + subIdx++ : null
       this._instances.set(def.id, new CustomIndicatorInstance(this._chart, def, entry, paneIndex))
+    }
+
+    // 重建后回填当前数据:实例构造只建 series,数据靠 update 注入;
+    // 否则激活/配置变化触发重建后新实例无数据,需刷新或等下一次 bars 更新才显示
+    if (this._bars.length > 0) {
+      for (const inst of this._instances.values()) inst.update(this._bars)
     }
   }
 }

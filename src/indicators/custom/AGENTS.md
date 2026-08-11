@@ -30,7 +30,7 @@ userFormulas.ts             用户公式记录注册表:localStorage mp_custom_f
                               (ma/emaBar/macd/rsi/boll/kdj 复用 calcX)、ctx.points(values) 对齐时间
   BandPrimitive.ts            区间填充 primitive(自研,附在 band 上轨 series)
   CustomIndicatorInstance.ts  渲染器:按 Output.type 建 series(6 种 series + band)+ 轴标签/角标 + 十字光标/图例
-  CustomIndicatorManager.ts   注册表 CUSTOM_INDICATORS + 实例生命周期 + 挂载位置编排 + pane 基数 + 多轴管理
+  CustomIndicatorManager.ts   注册表 CUSTOM_INDICATORS + 实例生命周期 + 挂载位置编排 + pane 基数 + 多轴管理;缓存最近 bars,重建后回填数据
   index.ts                    公共导出(import './demos' 副作用注册)
   demos.ts                    演示指标 cmacd/cboll/ckline/cmo(仅开发者参考,不参与顶栏 UI)
 ```
@@ -162,6 +162,7 @@ lightweight-charts 后添加的 series 绘制在上层。副图内柱/区间垫�
 
 - 配置持久化在 `IndicatorConfig.custom[id]: CustomIndicatorConfigEntry`(`{ enabled, pane, params, lineStyles, scales, rev }`),随 `mp_indicator_config` JSON 存储,老配置缺省 `{}` 合并兼容。
 - **`rev?: number` 必须随公式文本/参数变更递增**:`CustomIndicatorManager` 按 `JSON.stringify(entries)+paneBase` 检测签名;仅改公式文本时若 `rev` 不变,manager 不会重建实例,画面不更新。每次弹窗保存 `rev = (entry?.rev ?? 0) + 1`。
+- **实例重建会自动回填最近数据**:`CustomIndicatorManager` 缓存最近一次 `update(bars)`,`_rebuildIfNeeded`(配置/激活/参数/挂载位置/pane 基数变化)创建新实例后立即用缓存 bars 调 `inst.update()` 回填——实例构造只建 series、数据靠 update 注入,否则重建后新实例无数据显示(需刷新或等下一次 bars 更新才出现)。
 - 公式记录(公式文本/形态/名称 + 输出配置 `outputSpecs`(形态 + 行尾样式))持久化在 **`mp_custom_formulas`**(`UserFormulaRecord`),与实例配置 `mp_indicator_config` 分离。删除公式记录即注销定义;仍存在于配置里的实例会因定义缺失而跳过渲染。
 - 值级函数输出 `(number|null)[]`,`null` = 无效/预热期;`ctx.points()` 负责过滤与时间对齐。**不要**直接向 series 喂含 null 的数组。
 - 渲染层所有颜色默认走 def 的 `outputs[].color` 或类型缺省(红涨绿跌等);内置指标编辑面板覆盖进 `lineStyles`,公式指标样式由行尾声明决定(保存时清空该实例 `lineStyles`)。
