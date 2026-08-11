@@ -6,6 +6,7 @@ import {
   type UserFormulaRecord,
 } from '../indicators/custom'
 import type { IndicatorConfig, IndicatorId } from '../indicators/IndicatorController'
+import type { KlineBar } from '../types'
 import { CustomIndicatorDialog } from './modal/CustomIndicatorDialog'
 import { IndicatorConfigDialog } from './modal/IndicatorConfigDialog'
 import { useModal } from './modal/ModalProvider'
@@ -17,6 +18,8 @@ interface IndicatorBarProps {
   onApplyUserFormula: (rec: UserFormulaRecord, entry: CustomIndicatorConfigEntry) => void
   /** 删除用户公式指标 */
   onDeleteUserFormula: (id: string) => void
+  /** 当前 K 线数据(公式测试用) */
+  bars: KlineBar[]
 }
 
 /** 指标元数据:id + 名称 + 启用状态读取 + 开关(单一数据源,顶栏/添加弹窗共用) */
@@ -86,7 +89,7 @@ function IndicatorItem({
  * 自定义指标为「手写公式」,由末尾 +自定义指标 打开公式编辑弹窗创建;
  * 内容超宽时**仅指标区横向滚动**,末尾 + 按钮固定不动(留给自定义指标)。
  */
-export function IndicatorBar({ config, onChange, onApplyUserFormula, onDeleteUserFormula }: IndicatorBarProps) {
+export function IndicatorBar({ config, bars, onChange, onApplyUserFormula, onDeleteUserFormula }: IndicatorBarProps) {
   const { open } = useModal()
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -137,7 +140,7 @@ export function IndicatorBar({ config, onChange, onApplyUserFormula, onDeleteUse
       widthPct: 50,
       heightPct: 80,
       content: (api) => (
-        <CustomIndicatorDialog config={config} onApply={onApplyUserFormula} onDone={api.close} />
+        <CustomIndicatorDialog config={config} bars={bars} onApply={onApplyUserFormula} onDone={api.close} />
       ),
     })
   }
@@ -154,6 +157,7 @@ export function IndicatorBar({ config, onChange, onApplyUserFormula, onDeleteUse
         <CustomIndicatorDialog
           id={id}
           config={config}
+          bars={bars}
           onApply={onApplyUserFormula}
           onDelete={() => onDeleteUserFormula(id)}
           onDone={api.close}

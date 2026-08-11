@@ -39,6 +39,7 @@ export {
   newUserFormulaId,
   type UserFormulaRecord,
 } from './userFormulas'
+export { runFormulaTest, createSampleBars, type FormulaTestInput, type FormulaTestOutput, type FormulaTestResult } from './formulaTest'
 import './demos'
 export type {
   MacdWrapResult,

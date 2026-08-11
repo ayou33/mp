@@ -1,6 +1,7 @@
 import type { KlinePeriod } from '../../api/stock'
 import type { CustomIndicatorConfigEntry, UserFormulaRecord } from '../../indicators/custom'
 import type { IndicatorConfig } from '../../indicators/IndicatorController'
+import type { KlineBar } from '../../types'
 import { IndicatorBar } from '../IndicatorBar'
 import { PeriodSwitcher } from './PeriodSwitcher'
 import { SettingsButton } from './SettingsButton'
@@ -15,6 +16,8 @@ interface TopBarProps {
   onApplyUserFormula: (rec: UserFormulaRecord, entry: CustomIndicatorConfigEntry) => void
   /** 删除用户公式指标 */
   onDeleteUserFormula: (id: string) => void
+  /** 当前 K 线数据(公式测试用) */
+  bars: KlineBar[]
   /** 搜索框初始/当前显示代码(换股后同步) */
   searchDefault: string
   /** 股票搜索回调:回车触发(传用户输入,内部做代码规范化) */
@@ -30,6 +33,7 @@ export function TopBar({
   onIndicatorConfigChange,
   onApplyUserFormula,
   onDeleteUserFormula,
+  bars,
   searchDefault,
   onSearch,
   onOpenSettings,
@@ -42,6 +46,7 @@ export function TopBar({
         onChange={onIndicatorConfigChange}
         onApplyUserFormula={onApplyUserFormula}
         onDeleteUserFormula={onDeleteUserFormula}
+        bars={bars}
       />
       <StockSearch defaultValue={searchDefault} onSearch={onSearch} />
       <SettingsButton onClick={onOpenSettings} />

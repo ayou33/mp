@@ -6,6 +6,7 @@ import {
   type CustomPane,
   type CustomScale,
   type InlineLineStyle,
+  type FormulaIndicatorSpec,
   type FormulaOutputSpec,
   type FormulaShape,
   type FormulaStatement,
@@ -109,8 +110,8 @@ export interface FormulaCommitArgs {
 }
 
 /** 校验并构造公式记录 + 实例配置;任何校验失败抛 Error(message) */
-export function buildFormulaCommit(a: FormulaCommitArgs): { rec: UserFormulaRecord; entryNext: CustomIndicatorConfigEntry } {
-  if (!a.title.trim()) throw new Error('请输入指标名称')
+/** 校验公式并把当前弹窗状态组装为公式指标定义(与保存完全一致;公式测试也复用此路径,不校验名称) */
+export function assembleFormulaSpec(a: FormulaCommitArgs): FormulaIndicatorSpec {
   if (!a.formula.trim()) throw new Error('请输入公式')
   let allStmts: FormulaStatement[] = []
   try {
@@ -142,7 +143,6 @@ export function buildFormulaCommit(a: FormulaCommitArgs): { rec: UserFormulaReco
   // 多输出脚本:每条输出的形态 + band 下轨(可引用前面变量)/baseline 基准值
   let outputSpecs: Record<string, FormulaOutputSpec> | undefined
   if (a.scriptMode) {
-    const scaleId = `${a.recId}_scale`
     outputSpecs = {}
     const defined = new Set(allStmts.map((s) => s.name))
     for (const n of a.lineNames) {
@@ -150,7 +150,7 @@ export function buildFormulaCommit(a: FormulaCommitArgs): { rec: UserFormulaReco
       const spec: FormulaOutputSpec = { shape }
       const label = (a.lineLabels[n] ?? '').trim()
       if (label) spec.label = label
-      if ((a.lineScales[n] ?? 'right') === 'independent') spec.scale = { kind: 'independent', id: scaleId }
+      if ((a.lineScales[n] ?? 'right') === 'independent') spec.scale = { kind: 'independent', id: `${a.recId}_scale` }
       if (a.lineVisible[n] === false) spec.visible = false
       if (shape === 'band') {
         const lower = (a.lineLower[n] ?? '').trim()
@@ -191,12 +191,8 @@ export function buildFormulaCommit(a: FormulaCommitArgs): { rec: UserFormulaReco
     }
   }
 
-  const scales: Record<string, CustomScale> = {}
-  a.lineNames.forEach((n) => {
-    scales[n] = (a.lineScales[n] ?? 'right') === 'right' ? { kind: 'right' } : { kind: 'independent', id: `${a.recId}_scale` }
-  })
   const firstColor = a.lineNames.length > 0 ? inlineByKey.get(a.lineNames[0])?.color : undefined
-  const rec: UserFormulaRecord = {
+  return {
     id: a.recId,
     title: a.title.trim(),
     shape: a.scriptMode ? 'line' : a.shape,
@@ -205,6 +201,26 @@ export function buildFormulaCommit(a: FormulaCommitArgs): { rec: UserFormulaReco
     ...(!a.scriptMode && a.shape === 'baseline' ? { baseValue: base } : {}),
     ...(firstColor ? { color: firstColor } : {}),
     ...(outputSpecs ? { outputSpecs } : {}),
+  }
+}
+
+/** 校验并构造公式记录 + 实例配置;任何校验失败抛 Error(message) */
+export function buildFormulaCommit(a: FormulaCommitArgs): { rec: UserFormulaRecord; entryNext: CustomIndicatorConfigEntry } {
+  if (!a.title.trim()) throw new Error('请输入指标名称')
+  const spec = assembleFormulaSpec(a)
+  const scales: Record<string, CustomScale> = {}
+  a.lineNames.forEach((n) => {
+    scales[n] = (a.lineScales[n] ?? 'right') === 'right' ? { kind: 'right' } : { kind: 'independent', id: `${a.recId}_scale` }
+  })
+  const rec: UserFormulaRecord = {
+    id: spec.id,
+    title: spec.title,
+    shape: spec.shape,
+    formula: spec.formula,
+    ...(spec.formula2 !== undefined ? { formula2: spec.formula2 } : {}),
+    ...(spec.baseValue !== undefined ? { baseValue: spec.baseValue } : {}),
+    ...(spec.color ? { color: spec.color } : {}),
+    ...(spec.outputSpecs ? { outputSpecs: spec.outputSpecs } : {}),
   }
   const entryNext: CustomIndicatorConfigEntry = {
     enabled: a.entry?.enabled ?? true,

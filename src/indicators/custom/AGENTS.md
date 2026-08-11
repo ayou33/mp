@@ -24,6 +24,8 @@ src/indicators/custom/
 FormulaShape / FormulaOutputSpec;FORMULA_PALETTE 脚本各线取色;outputSpecs 决定脚本各输出形态 + 行尾样式
 userFormulas.ts             用户公式记录注册表:localStorage mp_custom_formulas 持久化(outputSpecs 脚本各输出形态 + 行尾样式),
                               registerUserFormula/unregisterUserFormula/loadUserFormulas/saveUserFormulas
+  formulaTest.ts              公式测试引擎:runFormulaTest 编译(defineFormulaIndicator)+ 对真实/合成样例 K 线跑 def.calc,
+                              逐输出统计有效点数/min/max/最新值,返回编译/运行错误与空输出警告;createSampleBars 确定性合成样例
   calcContext.ts              构造 CalcContext:注入 bars 字段序列、值函数库、bars 级常用指标包装
                               (ma/emaBar/macd/rsi/boll/kdj 复用 calcX)、ctx.points(values) 对齐时间
   BandPrimitive.ts            区间填充 primitive(自研,附在 band 上轨 series)
@@ -104,6 +106,7 @@ MA5 = EMA(C,5), COLORRED, DASH, WIDTH2
 - 多输出经 `evaluateFormulaScript` 顺序求值,后语句可引用前语句结果。
 
 **错误处理**:`parseFormula` / `parseFormulaScript` 抛 `FormulaError`(含出错位置 pos),弹窗保存前实时校验并展示错误;`loadUserFormulas` 跳过损坏/编译失败的记录。**不要在公式里引用未列出的字段/函数**(识别为语法错误)。
+弹窗「测试」按钮(`FormulaTestArea` → `useFormulaTest` → `runFormulaTest`)与保存共用 `assembleFormulaSpec` 编译校验,再对当前股票真实 K 线(无数据用 `createSampleBars` 合成样例)求值并逐输出统计,提交前即可确认指标能正常运作。
 
 **DSL 边界**:脚本模式支持 line / area / histogram / baseline / band 五种形态(每行独立选择,band 需下轨);**K线 / 条形**不在公式路径内,需走声明式 `defineIndicator`。
 

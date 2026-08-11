@@ -10,10 +10,14 @@ import {
   type UserFormulaRecord,
 } from '../../indicators/custom'
 import type { IndicatorConfig } from '../../indicators/IndicatorController'
+import type { KlineBar } from '../../types'
 import { FormulaHelp, FormulaOutputLines, SegmentedControl } from './FormulaOutputLines'
 import { FormulaHelpPanel } from './FormulaHelpPanel'
+import { FormulaTestArea } from './FormulaTestArea'
 import {
+  assembleFormulaSpec,
   buildFormulaCommit,
+  type FormulaCommitArgs,
   initLineBase,
   initLineLabels,
   initLineLower,
@@ -29,6 +33,8 @@ interface CustomIndicatorDialogProps {
   /** 编辑已有公式指标 id;缺省 = 新建 */
   id?: string
   config: IndicatorConfig
+  /** 当前 K 线数据(公式测试用;缺省用合成样例数据) */
+  bars?: KlineBar[]
   /** 保存(新建或更新):写公式记录 + 实例配置 */
   onApply: (rec: UserFormulaRecord, entry: CustomIndicatorConfigEntry) => void
   /** 删除(仅编辑模式) */
@@ -41,7 +47,7 @@ interface CustomIndicatorDialogProps {
  * 支持多输出脚本:每行 `NAME = EXPR`(可引用前面行)→ 每行一条输出,可独立选形态(band 需下轨/baseline 可设基准值);单表达式 → 单输出按形态渲染。
  * 新建/编辑复用;保存时校验公式语法 → 写公式记录(持久化)+ config.custom[id] 实例配置(rev 自增触发重建)。
  */
-export function CustomIndicatorDialog({ id, config, onApply, onDelete, onDone }: CustomIndicatorDialogProps) {
+export function CustomIndicatorDialog({ id, config, bars, onApply, onDelete, onDone }: CustomIndicatorDialogProps) {
   const existing = id ? USER_FORMULA_RECORDS.get(id) : undefined
   const entry = id ? config.custom[id] : undefined
   const [newId] = useState(() => newUserFormulaId())
@@ -87,26 +93,29 @@ export function CustomIndicatorDialog({ id, config, onApply, onDelete, onDone }:
   const setLineScale = (name: string, v: 'right' | 'independent') => setLineScales((p) => ({ ...p, [name]: v }))
   const setLineVis = (name: string, v: boolean) => setLineVisible((p) => ({ ...p, [name]: v }))
 
+  /** 测试与保存共用的提交参数(当前弹窗状态快照) */
+  const commitArgs = (): FormulaCommitArgs => ({
+    recId,
+    title,
+    shape,
+    formula,
+    formula2,
+    baseValue,
+    pane,
+    scriptMode,
+    lineNames,
+    lineShapes,
+    lineLower,
+    lineBase,
+    lineLabels,
+    lineScales,
+    lineVisible,
+    entry,
+  })
+
   const commit = () => {
     try {
-      const { rec, entryNext } = buildFormulaCommit({
-        recId,
-        title,
-        shape,
-        formula,
-        formula2,
-        baseValue,
-        pane,
-        scriptMode,
-        lineNames,
-        lineShapes,
-        lineLower,
-        lineBase,
-        lineLabels,
-        lineScales,
-        lineVisible,
-        entry,
-      })
+      const { rec, entryNext } = buildFormulaCommit(commitArgs())
       onApply(rec, entryNext)
       onDone()
     } catch (e) {
@@ -181,6 +190,12 @@ export function CustomIndicatorDialog({ id, config, onApply, onDelete, onDone }:
           />
         </label>
       )}
+
+      <FormulaTestArea
+        buildSpec={() => assembleFormulaSpec(commitArgs())}
+        bars={bars}
+        deps={[formula, formula2, shape, baseValue, lineShapes, lineLower, lineBase]}
+      />
 
       <FormulaHelp scriptMode={scriptMode} shape={shape} />
 

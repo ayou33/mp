@@ -308,6 +308,7 @@ export default function App() {
         onIndicatorConfigChange={setIndicatorConfig}
         onApplyUserFormula={applyUserFormula}
         onDeleteUserFormula={deleteUserFormula}
+        bars={bars}
         searchDefault={code}
         onSearch={search}
         onOpenSettings={openSettings}
