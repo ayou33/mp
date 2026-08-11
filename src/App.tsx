@@ -422,41 +422,42 @@ export default function App() {
             highLowStyle={settings.highLowStyle}
             storageKey={drawingStorageKey(code, period)}
           />
-          {/* 右上:OHLCV + 代码 + 周期 + 名称(上行);「回到最新」按钮独立(不与其共父级) */}
-          <div className="pointer-events-none absolute right-[72px] top-3 z-10 flex flex-col items-end gap-0.5 whitespace-nowrap">
-            <div className="flex flex-row items-baseline gap-0.5">
-              {chartLegend.ohlcv.map((e) => (
-                <span key={e.label} className="whitespace-nowrap text-sm leading-[1.4] tabular-nums" style={{ color: e.color }}>
-                  {e.label} {e.value}
-                </span>
-              ))}
-              <span className="text-xs text-muted">
-                {code.toUpperCase()} · {PERIOD_LABEL[period]}
-              </span>
-              <span> </span>
-              <span className="text-xl font-semibold text-white">{name || '—'}</span>
-            </div>
-            {!latestVisible && (
-              <button
-                className="pointer-events-auto mt-2 inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-accent bg-transparent text-xs text-accent hover:bg-accent/10"
-                title="回到最新"
-                onClick={() => setBackSignal((s) => s + 1)}
-              >
-                <HomeIcon width="14" height="14" />
-              </button>
+          {/* 顶部信息区:左 = 主图指标值(跟随十字线,动态);右 = OHLCV + 代码周期 + 名称。
+              同一 flex 容器 + 右块 ml-auto,两侧永不重叠;小屏 OHLC 换行显示,指标区限宽让出空间。 */}
+          <div className="pointer-events-none absolute left-4 right-[72px] top-3 z-10 flex items-start gap-2">
+            {chartLegend.indicators.length > 0 && (
+              <div className="flex min-w-0 max-w-[48%] flex-row flex-wrap items-center gap-x-1.5 gap-y-0.5 lg:max-w-none">
+                {chartLegend.indicators.map((e) => (
+                  <span key={e.label} className="text-xs leading-[1.4]" style={{ color: e.color }}>
+                    {e.label}
+                    {e.value !== null && ` ${e.value}`}
+                  </span>
+                ))}
+              </div>
             )}
-          </div>
-          {/* 左上:主图指标值区(MA/BBI 标签+值,跟随十字线) */}
-          {chartLegend.indicators.length > 0 && (
-            <div className="pointer-events-none absolute left-4 top-3 z-10 flex flex-row flex-wrap items-center gap-0.5">
-              {chartLegend.indicators.map((e) => (
-                <span key={e.label} className="text-xs leading-[1.4]" style={{ color: e.color }}>
-                  {e.label}
-                  {e.value !== null && ` ${e.value}`}
+            <div className="ml-auto flex min-w-0 flex-col items-end gap-1">
+              <div className="flex w-full flex-row flex-wrap items-baseline justify-end gap-x-1.5 gap-y-0.5">
+                {chartLegend.ohlcv.map((e) => (
+                  <span key={e.label} className="whitespace-nowrap text-xs leading-[1.4] tabular-nums lg:text-sm" style={{ color: e.color }}>
+                    {e.label} {e.value}
+                  </span>
+                ))}
+                <span className="text-xs text-muted">
+                  {code.toUpperCase()} · {PERIOD_LABEL[period]}
                 </span>
-              ))}
+                <span className="text-xl font-semibold text-white">{name || '—'}</span>
+              </div>
+              {!latestVisible && (
+                <button
+                  className="pointer-events-auto inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-accent bg-transparent text-xs text-accent hover:bg-accent/10"
+                  title="回到最新"
+                  onClick={() => setBackSignal((s) => s + 1)}
+                >
+                  <HomeIcon width="14" height="14" />
+                </button>
+              )}
             </div>
-          )}
+          </div>
         </div>
 
         {/* 自选侧栏:lg+ 常驻右侧;小屏默认收起,经底部「自选」浮层展开 */}

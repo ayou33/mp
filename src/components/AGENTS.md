@@ -79,6 +79,7 @@ ModalStack 的结构是 `fixed inset-0 z-[1000+i]` 包裹「`absolute` 遮罩 + 
 - 顶部指标栏:常显全部指标,点击名称开关,激活项文字 `text-accent` + 底部短 bar `bg-accent`;内容超宽时隐藏滚动条、**鼠标滚轮横向平滑滚动**(rAF 缓动,仅横向可滚动时接管,不挡页面纵向滚动);末尾「+自定义指标」固定不动;用户公式指标全部追加在末尾(含未激活,激活态 = `config.custom[id].enabled`),点击名称仅切换激活,移除在设置弹窗。
 - 画线工具栏激活态:`bg-{color}/20 text-{color}`(价格线/线段=黄、矩形/测量=青、斐波那契=紫、垂直线=ink、文本/操作线=accent)。
 - 布局:左侧 DrawToolbar + 中间 `.chart-wrap`(含 KLineChart 与图表浮层)+ 右侧 Sidebar;顶栏三区。**小屏(<lg)响应式折叠**:指标栏/画线栏/自选栏默认收起,只显示绘图区域;底部 `mobile/MobileActionBar` 展开对应浮层(DrawToolbar 左浮层 / Sidebar 右浮层 / IndicatorBar 顶部条),点击背景关闭;桌面端(lg+)布局不变。
+- 图表顶部信息区(左上主图指标值 / 右上 OHLCV+代码周期+名称+回到最新):单一 flex 容器(`left-4 right-[72px]`)内左块指标值 + 右块 `ml-auto`,两侧**永不重叠**;小屏 OHLC `flex-wrap` 自动换行(`text-xs`)、指标区限宽 `max-w-[48%]` 让出右侧空间,桌面端还原单行。
 - 自选/浏览数据来自 `src/data/stocks.ts`,自选列表持久化 `mp_watchlist`,设置持久化 `mp_settings`。
 
 ## 文件要点
