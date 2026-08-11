@@ -63,3 +63,23 @@
 ## 工具输入 Schema 说明
 
 工具入参的 JSON Schema 由 `v1/common/types.md` 对应类型生成;`code`/`bars` 二选一的约束与 REST 一致(传 `bars` 时服务端不再拉行情)。
+
+## 数据输入(工具参数)
+
+**可以。** MCP 工具通过 `inputSchema`(JSON Schema)接收结构化数据输入:AI 助手调用工具时把数据作为 `arguments` 传入(`tools/call`),这是 MCP 标准机制(区别于 Resources——Resources 是服务端→客户端的只读数据,不用于客户端向服务端传数据)。
+
+本设计中接受数据输入的工具:
+
+| 工具 | 可输入的数据 |
+| --- | --- |
+| `calc_indicator(code?, bars?, indicators)` | K 线数组 `bars`(不传则用 `code` 由服务端拉取) |
+| `test_formula(formula, shape?, formula2?, baseValue?, outputSpecs?, code?, bars?)` | 公式文本 + 形态配置 + 可选数据 |
+| `save_formula(record)` | 完整 `FormulaRecord`(公式/形态/outputSpecs) |
+| `save_drawings(stock, period, items)` | 画线对象数组 |
+| `save_indicator_config(config)` / `save_settings(settings)` | 配置 / 设置对象 |
+| `add_watchlist(code)` / `remove_watchlist(code)` 等 | 代码等标量参数 |
+
+注意:
+- **大小限制**:受传输层消息体限制(常见默认约 4MB,可配置)。K 线等数组数据**优先传 `code` 由服务端拉取**(结果一致且省 token/带宽);确需客户端传数据时控制条数(如 ≤ 320 根)或分批。
+- **类型校验**:入参按 `common/types.md` 对应类型校验,非法返回 `VALIDATION_ERROR`。
+- **大文件**:如要传全量历史等大体积数据,建议先由服务端落库/生成引用,再传引用 id;或经 MCP Resources 由服务端提供。
