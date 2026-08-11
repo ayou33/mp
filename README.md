@@ -7,6 +7,7 @@ A 股 K 线看板 monorepo,按子项目分目录组织。
 | 目录 | 说明 | 状态 |
 | --- | --- | --- |
 | [`web/`](web/) | TradingView 风格 A 股日 K 看板(React 19 + Vite 8 + TypeScript) | ✅ 已有 |
+| [`api/`](api/README.md) | 统一 API 标准(目录即路径,web ↔ backend ↔ MCP 契约) | ✅ 已有 |
 | `mcp-server/` | MCP Server | 🚧 规划中 |
 | `backend-server/` | 后端服务 | 🚧 规划中 |
 
@@ -14,4 +15,4 @@ A 股 K 线看板 monorepo,按子项目分目录组织。
 
 ## API 设计
 
-前后端交互与 MCP Server 的统一 API 定义见 [`docs/api-design.md`](docs/api-design.md)(基于现有 web 功能设计,作为 backend-server / mcp-server 的契约事实源)。
+统一 API 标准以**「目录 = URL 路径」**组织在 [`api/`](api/README.md):`api/v1/` 目录段即路径段,叶子文档描述各端点详情(类型结构 + 样例数据),子节点多的目录配 `README.md`;`api/v1/common/types.md` 为契约事实源,`api/mcp.md` 定义 MCP 工具。作为 backend-server / mcp-server 的落地契约。

@@ -5,7 +5,8 @@
 ## 子项目
 
 - **`web/`** — A 股 K 线看板(React 19 + Vite 8 + TypeScript + Tailwind v4 + lightweight-charts v5)。**全部开发约定(架构原则/常用命令/关键坑/目录要点)见 `web/AGENTS.md`**,修改 web 内结构或逻辑时只更新 `web/` 下的 AGENTS.md,不要改动任何 CLAUDE.md。
-- **`mcp-server/` / `backend-server/`** — 规划中的子项目,待新建。**前后端交互与 MCP 的统一 API 契约见 `docs/api-design.md`(基于现有 web 功能设计),落成时以其为契约事实源。**每个子项目落成时在各自目录建立 `AGENTS.md`(项目约定)+ `CLAUDE.md`(一行 `@AGENTS.md` 导入),并更新本文件与根 README 的子项目清单。
+- **`api/`** — 统一 API 标准(已有):以「目录 = URL 路径」组织,`api/v1/common/types.md` 为契约事实源,`api/mcp.md` 定义 MCP 工具。详见 `api/README.md`。
+- **`mcp-server/` / `backend-server/`** — 规划中的子项目,待新建。**前后端交互与 MCP 的统一 API 契约见 `api/`,落成时以其为契约事实源。**每个子项目落成时在各自目录建立 `AGENTS.md`(项目约定)+ `CLAUDE.md`(一行 `@AGENTS.md` 导入),并更新本文件与根 README 的子项目清单。
 
 ## 约定
 
