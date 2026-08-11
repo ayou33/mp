@@ -1,6 +1,6 @@
 import AddIcon from '@iconify-react/material-symbols/add'
 import CloseIcon from '@iconify-react/material-symbols/close'
-import { POPULAR_STOCKS, stockName } from '../data/stocks'
+import { stockName, type BrowseEntry } from '../data/stocks'
 
 export type SidebarTab = 'watch' | 'browse'
 
@@ -8,6 +8,8 @@ interface SidebarProps {
   tab: SidebarTab
   onTabChange: (tab: SidebarTab) => void
   watchlist: string[]
+  /** 浏览记录(最近浏览,默认空) */
+  browseHistory: BrowseEntry[]
   onAdd: (code: string) => void
   onRemove: (code: string) => void
   onSelect: (code: string) => void
@@ -18,6 +20,7 @@ export function Sidebar({
   tab,
   onTabChange,
   watchlist,
+  browseHistory,
   onAdd,
   onRemove,
   onSelect,
@@ -33,13 +36,13 @@ export function Sidebar({
           自选
         </button>
         <button className={tabBtn(tab === 'browse')} onClick={() => onTabChange('browse')}>
-          浏览
+          最近浏览
         </button>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
         {tab === 'watch' ? (
           watchlist.length === 0 ? (
-            <div className="px-2 py-6 text-center text-xs text-muted">暂无自选,去「浏览」添加</div>
+            <div className="px-2 py-6 text-center text-xs text-muted">暂无自选,浏览或搜索后点 + 加入</div>
           ) : (
             watchlist.map((c) => (
               <div key={c} className="flex items-center gap-1.5 p-2.5 hover:bg-white/5">
@@ -60,19 +63,21 @@ export function Sidebar({
               </div>
             ))
           )
+        ) : browseHistory.length === 0 ? (
+          <div className="px-2 py-6 text-center text-xs text-muted">暂无浏览记录,搜索或点击股票后自动记录</div>
         ) : (
-          POPULAR_STOCKS.map((s) => (
-            <div key={s.code} className="flex items-center gap-1.5 p-2.5 hover:bg-white/5">
+          browseHistory.map((e) => (
+            <div key={e.code} className="flex items-center gap-1.5 p-2.5 hover:bg-white/5">
               <button
                 className="flex-1 cursor-pointer border-none bg-transparent px-0 py-0.5 text-left text-sm text-ink"
-                onClick={() => onSelect(s.code)}
+                onClick={() => onSelect(e.code)}
               >
-                {s.name}
-                <span className="ml-1.5 text-xs text-muted">{s.code}</span>
+                {e.name}
+                <span className="ml-1.5 text-xs text-muted">{e.code}</span>
               </button>
               <button
                 className="cursor-pointer border-none bg-transparent px-1 py-0.5 text-sm text-muted hover:text-white"
-                onClick={() => onAdd(s.code)}
+                onClick={() => onAdd(e.code)}
                 title="加入自选"
               >
                 <AddIcon width="14" height="14" />

@@ -25,9 +25,10 @@ import type {
   IndicatorConfig,
 } from './indicators/IndicatorController'
 import type { KlineBar } from './types'
+import type { BrowseEntry } from './data/stocks'
 
 const DEFAULT_CODE = 'sh000001' // 大盘:上证指数
-const DEFAULT_WATCHLIST = ['sh600519', 'sz000001', 'sz300750']
+const DEFAULT_WATCHLIST = ['sh000001', 'sh000680', 'sz399006'] // 默认自选:上证指数 / 科创综指 / 创业板指
 
 /** 取 YYYY-MM-DD 的次日(测试模拟行情用;跨月/跨年正确,周末按连续交易日处理) */
 function nextDay(dateStr: string): string {
@@ -49,6 +50,20 @@ function loadWatchlist(): string[] {
     /* 忽略损坏数据 */
   }
   return DEFAULT_WATCHLIST
+}
+
+/** 浏览记录(最近浏览):localStorage 缺失/损坏时默认为空 */
+function loadBrowseHistory(): BrowseEntry[] {
+  try {
+    const raw = localStorage.getItem('mp_browse_history')
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed)) return parsed.filter((e) => e && typeof e.code === 'string')
+    }
+  } catch {
+    /* 忽略损坏数据 */
+  }
+  return []
 }
 
 function loadSettings(): UserSettings {
@@ -145,6 +160,8 @@ export default function App() {
   const [backSignal, setBackSignal] = useState(0)
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>('watch')
   const [watchlist, setWatchlist] = useState<string[]>(loadWatchlist)
+  /** 浏览记录(最近浏览,默认空;主动浏览股票时记录,去重置顶上限 30) */
+  const [browseHistory, setBrowseHistory] = useState<BrowseEntry[]>(loadBrowseHistory)
   /** 移动端浮层面板:指标/画线/自选(小屏默认收起,经底部操作栏展开;lg+ 不参与布局) */
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>('none')
 
@@ -166,6 +183,13 @@ export default function App() {
       /* 忽略存储失败 */
     }
   }, [watchlist])
+  useEffect(() => {
+    try {
+      localStorage.setItem('mp_browse_history', JSON.stringify(browseHistory))
+    } catch {
+      /* 忽略存储失败 */
+    }
+  }, [browseHistory])
   // 指标配置(参数 + 线样式)持久化到 localStorage;结构化 JSON,后续可扩展为服务器同步
   useEffect(() => {
     try {
@@ -207,13 +231,13 @@ export default function App() {
   const periodRef = useRef(period)
   periodRef.current = period
 
-  const search = useCallback(async (input: string, p?: KlinePeriod) => {
+  const search = useCallback(async (input: string, p?: KlinePeriod): Promise<{ code: string; name: string } | null> => {
     let normalized: string
     try {
       normalized = normalizeCode(input)
     } catch (err) {
       setError(err instanceof Error ? err.message : '无法识别的代码')
-      return
+      return null
     }
 
     setLoading(true)
@@ -223,12 +247,22 @@ export default function App() {
       setCode(data.code)
       setName(data.name)
       setBars(data.bars)
+      return { code: data.code, name: data.name }
     } catch (err) {
       setError(err instanceof Error ? err.message : '加载失败,请重试')
+      return null
     } finally {
       setLoading(false)
     }
   }, [])
+
+  /** 用户主动浏览:加载成功后记入「浏览记录」(去重置顶,上限 30);初始加载/切换周期不记录 */
+  const browse = useCallback((input: string, p?: KlinePeriod) => {
+    void search(input, p).then((loaded) => {
+      if (!loaded) return
+      setBrowseHistory((h) => [{ code: loaded.code, name: loaded.name }, ...h.filter((x) => x.code !== loaded.code)].slice(0, 30))
+    })
+  }, [search])
 
   // 切换周期:更新状态并按当前代码重新加载
   const changePeriod = useCallback(
@@ -314,7 +348,7 @@ export default function App() {
         onDeleteUserFormula={deleteUserFormula}
         bars={bars}
         searchDefault={code}
-        onSearch={search}
+        onSearch={browse}
         onOpenSettings={openSettings}
       />
 
@@ -468,8 +502,9 @@ export default function App() {
             watchlist={watchlist}
             onAdd={addToWatchlist}
             onRemove={removeFromWatchlist}
+            browseHistory={browseHistory}
             onSelect={(c) => {
-              search(c)
+              browse(c)
               setMobilePanel('none')
             }}
           />

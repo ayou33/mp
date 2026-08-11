@@ -5,7 +5,7 @@ React 层(布局 + 弹窗 + 图表壳),只做「渲染 + 事件接线」,不承�
 ## 分层结构(自顶向下)
 
 ```
-App.tsx 编排:股票/周期/设置/自选状态、9 种画线模式互斥、指标配置、错误横幅、ModalProvider 装配、移动端浮层(mobilePanel)与底部操作栏
+App.tsx 编排:股票/周期/设置/自选/浏览记录状态、9 种画线模式互斥、指标配置、错误横幅、ModalProvider 装配、移动端浮层(mobilePanel)与底部操作栏
   ├─ topbar/TopBar.tsx 顶栏:PeriodSwitcher + IndicatorBar + StockSearch + SettingsButton
   │     ├─ PeriodSwitcher 周期切换(日/周/月)
   │     ├─ StockSearch    股票搜索(回车触发,规范化在 src/api/stock.ts)
@@ -15,7 +15,7 @@ App.tsx 编排:股票/周期/设置/自选状态、9 种画线模式互斥、指
   ├─ KLineChart.tsx 图表壳:createChart、数据更新、模式开关接线、非 React 控制器装配
   │     ├─ 图表浮层:DrawingContextMenu(画线左键菜单)/ range-select-overlay(操作线确认按钮为画布实现,见 drawing/AGENTS.md)
   │     └─ 经 ModalProvider 打开的弹窗内容:RangeStatsDialog / ActionTypeDialog / TextInputDialog
-  ├─ Sidebar.tsx 右侧自选/浏览(自选持久化 mp_watchlist)
+  ├─ Sidebar.tsx 右侧自选/最近浏览(自选持久化 mp_watchlist、浏览记录持久化 mp_browse_history,默认空)
   ├─ mobile/MobileActionBar.tsx 移动端底部操作栏(仅 <lg 显示):指标/画线/自选 浮层开关
   └─ modal/ 全局弹窗体系
         ├─ ModalProvider.tsx 弹窗状态:open/close、多层堆叠(遮罩 z-index 1000+i)、Esc/点遮罩关闭
@@ -80,11 +80,11 @@ ModalStack 的结构是 `fixed inset-0 z-[1000+i]` 包裹「`absolute` 遮罩 + 
 - 画线工具栏激活态:`bg-{color}/20 text-{color}`(价格线/线段=黄、矩形/测量=青、斐波那契=紫、垂直线=ink、文本/操作线=accent)。
 - 布局:左侧 DrawToolbar + 中间 `.chart-wrap`(含 KLineChart 与图表浮层)+ 右侧 Sidebar;顶栏三区。**小屏(<lg)响应式折叠**:指标栏/画线栏/自选栏默认收起,只显示绘图区域;底部 `mobile/MobileActionBar` 展开对应浮层(DrawToolbar 左浮层 / Sidebar 右浮层 / IndicatorBar 顶部条),点击背景关闭;桌面端(lg+)布局不变。
 - 图表顶部信息区(左上主图指标值 / 右上 OHLCV+代码周期+名称+回到最新):单一 flex 容器(`left-4 right-[72px]`)内左块指标值 + 右块 `ml-auto`,两侧**永不重叠**;小屏 OHLC `flex-wrap` 自动换行(`text-xs`)、指标区限宽 `max-w-[48%]` 让出右侧空间,桌面端还原单行。
-- 自选/浏览数据来自 `src/data/stocks.ts`,自选列表持久化 `mp_watchlist`,设置持久化 `mp_settings`。
+- 自选/最近浏览:默认自选为三大指数(上证指数 sh000001 / 科创综指 sh000680 / 创业板指 sz399006),数据与名称映射在 `src/data/stocks.ts`;自选持久化 `mp_watchlist`,浏览记录(最近浏览,默认空,主动浏览去重置顶上限 30)持久化 `mp_browse_history`,设置持久化 `mp_settings`。
 
 ## 文件要点
 
-- `App.tsx` — 编排:股票/周期/自选/设置状态、`indicatorConfig` 默认值、9 种画线模式互斥(`clearDrawingModes`,开启任一工具复位其余)、错误横幅、TopBar/DrawToolbar/KLineChart/Sidebar 装配、ModalProvider 包裹;移动端浮层:`mobilePanel` 状态 + DrawToolbar/Sidebar 单实例响应式包装 + IndicatorBar 顶部浮层 + 背景关闭 + 底部 `MobileActionBar`。
+- `App.tsx` — 编排:股票/周期/自选/浏览记录/设置状态、`indicatorConfig` 默认值、9 种画线模式互斥(`clearDrawingModes`,开启任一工具复位其余)、错误横幅、TopBar/DrawToolbar/KLineChart/Sidebar 装配、ModalProvider 包裹;移动端浮层:`mobilePanel` 状态 + DrawToolbar/Sidebar 单实例响应式包装 + IndicatorBar 顶部浮层 + 背景关闭 + 底部 `MobileActionBar`;浏览记录:`browse`(主动浏览成功后去重置顶上限 30 写入 `mp_browse_history`,初始加载/切周期不记录)。
 - `mobile/MobileActionBar.tsx` — 移动端底部操作栏(仅 `lg:hidden` 显示):指标/画线/自选 三个开关按钮,点击展开/收起对应浮层面板(`MobilePanel` 类型)。
 - `topbar/TopBar.tsx` — 顶栏三区布局(左周期 / 中指标栏 / 右搜索+设置)。
 - `topbar/StockSearch.tsx` — 股票搜索输入(回车触发,代码规范化交给 `src/api/stock.ts` 的 `normalizeCode`)。
@@ -93,7 +93,7 @@ ModalStack 的结构是 `fixed inset-0 z-[1000+i]` 包裹「`absolute` 遮罩 + 
 - `IndicatorBar.tsx` — 指标栏:12 个指标元数据(单一数据源 `INDICATORS`,顶栏与添加弹窗共用)、常显全部、激活蓝字+底部短 bar、滚动区隐藏滚动条 + 滚轮平滑横向滚动、+自定义指标;用户公式指标全部追加末尾(含未激活),激活态 = `config.custom[id].enabled`,点击切换,编辑弹窗可删。
 - `DrawToolbar.tsx` — 左侧画线工具栏:9 种工具互斥开关 + 清除 + 底部「模拟」区两个测试按钮(向上/向下跳动,`onSimulateUp`/`onSimulateDown` → App `simulateMove` 追加次日大涨/大跌 K 线驱动操作线触发);`act(color)` 辅助生成激活态类。
 - `KLineChart.tsx` — 图表壳:createChart(StrictMode 兼容)、Candlestick/Volume series、`DrawingTools`/`IndicatorController`/`HistoryLoader`/`VisibleRangeMark`/`CrosshairGainLabel` 装配、模式开关渲染期同步、右键框选/区间统计/操作线/文本标注弹窗接线、画线持久化(storageKey)、图表浮层渲染。操作线确认交互已下沉 drawing 层(画布按钮),无 React 确认浮层。
-- `Sidebar.tsx` — 右侧自选/浏览列表(自选可移除、浏览可加入),数据来自 `src/data/stocks.ts`。
+- `Sidebar.tsx` — 右侧自选/最近浏览列表(自选可移除、浏览记录可加入),自选名称用 `stockName`,浏览记录条目 `BrowseEntry{code,name}` 来自 App 的 `browseHistory`。
 - `PriceInput.tsx` — 可复用价格输入:受控、滚轮 1/10/100 tick、精确 0.01、`w-full` 填父级;画线编辑/文本标注/操作线创建共用。
 - `modal/ModalProvider.tsx` — 全局弹窗系统:`open`/`close`(可指定 key)、多层堆叠(`z-index 1000+i`、下层半透明)、Esc/点遮罩关最上层;`content` 函数形式注入 `{ close }`;`ModalConfig` 支持 `widthPct`/`heightPct` 视口百分比尺寸。
 - `modal/BaseModal.tsx` — 统一弹窗外壳:`placement center`(居中)/`right`(右侧滑入)/`float`(容器内 `absolute` 自定位);center/right **内置 `relative z-10`**(防被遮罩盖住,见关键坑 2);`modal-body` 类保留作 float 布局覆盖钩子;`widthPct`/`heightPct` 按 `vw`/`vh` 百分比设宽高(50/50 = 窗口一半),`widthPct` 存在时去掉默认 `w-[420px]`。
