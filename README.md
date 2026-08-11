@@ -7,7 +7,7 @@ TradingView 风格 A 股日 K 看板:真实行情渲染、自研画线工具与�
 - **React 19 + Vite 8 + TypeScript**,样式 **Tailwind CSS v4**(utility + `@theme` 深色 token)
 - **lightweight-charts v5**(TradingView 官方开源库)的 series 与 primitives API
 - **画线工具 / 斐波那契 / 指标均为自研**,不走 klinecharts
-- 包管理器 **pnpm**(`packageManager` 字段 + `preinstall` 脚本强制)
+- 包管理器 **pnpm**(按 `packageManager` 字段声明的版本)
 
 ## 本地运行
 
@@ -39,11 +39,18 @@ pnpm preview     # 预览生产构建
 - **主图**:MA / EMA / BBI / BOLL
 - **副图**:RSI / MACD / KDJ / WR / CCI / OBV / ATR / DMI
 - 每个指标可编辑**参数**(周期、快慢线等)与**输出线样式**(线色 / 线宽 / 线型)
-- 副图 pane 按激活先后排列,顶部指标栏点击开关
+- 副图 pane 按激活先后排列,顶部指标栏点击开关;顶栏「+自定义指标」手写公式定义指标,保存后追加到指标栏(默认不激活,点击名称切换激活,移除在设置弹窗)
+
+### 自定义指标(公式 DSL)
+
+- 字段 `CLOSE(C)` / `OPEN(O)` / `HIGH(H)` / `LOW(L)` / `VOLUME(V)`;函数 `SMA/MA/EMA/STDDEV/SUM/HHV/LLV/WILDER/REF/REFX/BARSCOUNT/ABS/MAX/MIN/CROSSOVER/CROSSUNDER/IF`,支持比较/逻辑运算与 `{...}` 注释
+- 多输出脚本:每行 `NAME = EXPR` 定义一条输出线,`NAME := EXPR` 定义私有中间变量(只计算不渲染);可引用内置指标成员(`KDJ().K`、`MACD().DIF/DEA/MACD`、`BOLL().MID/UPPER/LOWER`、`RSI()` 等);行尾声明线色/线宽/线型
+- 输出形态:折线 / 面积 / 柱状 / 基线 / 区间(每行独立选择,band 需下轨),另有 `STICKLINE` 竖条;每线可配显示名、Y 轴(主轴/独立轴)、显示开关
+- 弹窗「测试」按钮:与保存一致的编译校验 + 对当前 K 线(无数据用合成样例)求值统计(有效点数/min/max/最新值),提交前确认指标可正常显示
 
 ### 其他
 
-- 右侧自选 / 浏览(自选持久化 `mp_watchlist`),设置弹窗(默认周期、红涨绿跌、高/低点标注样式,持久化 `mp_settings`)
+- 右侧自选 / 浏览(自选持久化 `mp_watchlist`),设置弹窗(默认周期、红涨绿跌、高/低点标注样式,并在此移除自定义指标;用户设置持久化 `mp_settings`)
 - 顶部指标栏常显全部指标、激活蓝字 + 底部短 bar,内容超宽时隐藏滚动条、鼠标滚轮平滑横向滚动
 
 ## 数据流:必须走 Vite 代理
@@ -58,7 +65,7 @@ src/
   chart/       图表辅助逻辑(非 React):价格区间适配、历史加载、可见高低点、涨幅标签
   components/  布局 + 弹窗 + 图表壳(React 层,只做渲染与事件接线)
   drawing/     自研画线子系统(非 React):控制器 + primitive + 序列化持久化
-  indicators/  指标子系统(非 React):纯函数计算 + series 装配 + 参数/样式编辑
+  indicators/  指标子系统(非 React):纯函数计算 + series 装配 + 参数/样式编辑 + custom/(自定义指标框架:公式 DSL + 声明式定义)
   data/        常用 A 股清单
 ```
 
