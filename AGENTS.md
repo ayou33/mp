@@ -8,7 +8,7 @@
 - **`api/`** — 统一 API 标准(已有):以「目录 = URL 路径」组织,`api/v1/common/types.md` 为契约事实源,`api/mcp.md` 定义 MCP 工具。详见 `api/README.md`。
 - **`shared/`** — 共享契约与计算引擎(已有,`@mp/shared`):类型 DTO + 内置指标 + 公式 DSL 引擎,backend 与 web 均依赖其 `dist`(web 已切换到本包,单一实现)。详见 `shared/README.md`。
 - **`backend-server/`** — REST 后端(已有,`@mp/backend-server`):Fastify + better-sqlite3,按 `api/v1/` 实现全部端点。详见 `backend-server/README.md`。
-- **`mcp-server/`** — 规划中的子项目,待新建。**MCP 工具定义见 `api/mcp.md`(三大主服务 + 辅助工具),落成时以其为契约事实源。**新建时在各自目录建立 `AGENTS.md`(项目约定)+ `CLAUDE.md`(一行 `@AGENTS.md` 导入),并更新本文件与根 README 的子项目清单。
+- **`mcp-server/`** — MCP Server(已有,`@mp/mcp-server`):@modelcontextprotocol/sdk,按 `api/mcp.md` 暴露 25 个工具,作为 backend-server 的 REST 客户端。详见 `mcp-server/README.md`。
 
 ## 约定
 

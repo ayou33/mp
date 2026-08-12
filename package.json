@@ -4,6 +4,7 @@
   "scripts": {
     "build": "pnpm -r build",
     "dev:web": "pnpm --filter web dev",
-    "dev:backend": "pnpm --filter @mp/backend-server dev"
+    "dev:backend": "pnpm --filter @mp/backend-server dev",
+    "dev:mcp": "pnpm --filter @mp/mcp-server dev"
   }
 }

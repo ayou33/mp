@@ -2,6 +2,7 @@ packages:
   - web
   - shared
   - backend-server
+  - mcp-server
 
 allowBuilds:
   better-sqlite3: true

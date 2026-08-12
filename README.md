@@ -10,7 +10,7 @@ A 股 K 线看板 monorepo,按子项目分目录组织。
 | [`api/`](api/README.md) | 统一 API 标准(目录即路径,web ↔ backend ↔ MCP 契约) | ✅ 已有 |
 | [`shared/`](shared/README.md) | 共享契约 + 指标/公式引擎(`@mp/shared`) | ✅ 已有 |
 | [`backend-server/`](backend-server/README.md) | REST 后端(Fastify + SQLite,实现 `api/v1`) | ✅ 已有 |
-| `mcp-server/` | MCP Server | 🚧 规划中 |
+| [`mcp-server/`](mcp-server/README.md) | MCP Server(@modelcontextprotocol/sdk,暴露 api/mcp.md 工具) | ✅ 已有 |
 
 `web/` 的本地运行、功能与目录说明见 [`web/README.md`](web/README.md)。
 
