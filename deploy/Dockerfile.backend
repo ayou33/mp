@@ -1,0 +1,55 @@
+# syntax=docker/dockerfile:1
+# ============================================================
+# mp backend-server — 多阶段构建:shared + backend 编译 → node 运行
+# 构建上下文 = 仓库根(compose 中 context: ..)
+# ============================================================
+
+# ---- 构建阶段 ----
+FROM node:24-bookworm-slim AS build
+
+# 大陆服务器拉包加速(阿里云 ECS 上构建推荐保留;海外服务器可去掉)
+ENV npm_config_registry=https://registry.npmmirror.com
+
+# better-sqlite3 是原生模块:优先用预编译产物,失败时回退源码编译需要这些工具
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends python3 make g++ \
+  && rm -rf /var/lib/apt/lists/*
+
+RUN npm install -g pnpm@11.2.2
+
+WORKDIR /app
+
+# 先复制 manifests + lockfile,利用 Docker 层缓存
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY web/package.json web/package.json
+COPY shared/package.json shared/package.json
+COPY backend-server/package.json backend-server/package.json
+COPY mcp-server/package.json mcp-server/package.json
+
+# 只安装 backend 及其 workspace 依赖(shared)
+RUN pnpm install --frozen-lockfile --filter @mp/backend-server...
+
+# 再复制源码并构建:shared dist(运行时依赖) → backend dist(tsup 编译产物)
+COPY shared/ shared/
+COPY backend-server/ backend-server/
+RUN pnpm --filter @mp/shared build && pnpm --filter @mp/backend-server build:dist
+
+# 去掉 dev 依赖(typescript/tsup/vitest/tsx 等),缩小运行时镜像
+RUN pnpm prune --prod
+
+# ---- 运行阶段 ----
+FROM node:24-bookworm-slim AS runtime
+
+ENV NODE_ENV=production
+
+WORKDIR /app
+
+COPY --from=build /app/package.json /app/pnpm-workspace.yaml ./
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/shared ./shared
+COPY --from=build /app/backend-server/package.json ./backend-server/package.json
+COPY --from=build /app/backend-server/dist ./backend-server/dist
+
+EXPOSE 3000
+
+CMD ["node", "backend-server/dist/index.js"]

@@ -1,0 +1,10 @@
+# Docker 构建上下文排除(构建上下文 = 仓库根,见 deploy/Dockerfile.*)
+.git
+.pnpm-store
+**/node_modules
+**/dist
+**/data
+**/*.tsbuildinfo
+**/*.log
+deploy/certs
+deploy/.env

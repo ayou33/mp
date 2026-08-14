@@ -1,0 +1,41 @@
+# syntax=docker/dockerfile:1
+# ============================================================
+# mp web — 多阶段构建:pnpm workspace 构建 web/dist → nginx 镜像
+# 构建上下文 = 仓库根(compose 中 context: ..)
+# ============================================================
+
+# ---- 构建阶段 ----
+FROM node:24-bookworm-slim AS build
+
+# 大陆服务器拉包加速(阿里云 ECS 上构建推荐保留;海外服务器可去掉)
+ENV npm_config_registry=https://registry.npmmirror.com
+
+RUN npm install -g pnpm@11.2.2
+
+WORKDIR /app
+
+# 先复制 manifests + lockfile,利用 Docker 层缓存(依赖不变时跳过 install)
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY web/package.json web/package.json
+COPY shared/package.json shared/package.json
+COPY backend-server/package.json backend-server/package.json
+COPY mcp-server/package.json mcp-server/package.json
+
+# 只安装 web 及其 workspace 依赖(shared),不装 backend/mcp
+# 注意:web 的包名是 "mp"(与根同名),用目录过滤器 ./web 精确匹配
+RUN pnpm install --frozen-lockfile --filter ./web...
+
+# 再复制源码
+COPY shared/ shared/
+COPY web/ web/
+
+# shared 先构建出 dist(web 通过 @mp/shared 的 exports 消费其 dist),再构建 web
+RUN pnpm --filter @mp/shared build && pnpm --filter ./web build
+
+# ---- 运行阶段:nginx 托管静态产物 ----
+FROM nginx:alpine
+
+COPY --from=build /app/web/dist /usr/share/nginx/html
+COPY deploy/nginx.conf /etc/nginx/conf.d/mp.conf
+
+EXPOSE 80
